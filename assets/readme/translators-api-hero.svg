@@ -1,41 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
-<title id="title">translators-api</title>
-<desc id="desc">A Morandi-style translation request flowing through a unified API gateway into multiple translation services.</desc>
-<rect width="1600" height="520" fill="#8f9b9b"/>
-<rect x="52" y="46" width="1496" height="428" rx="34" fill="#d7d0c8" stroke="#536161" stroke-width="4"/>
-<text x="120" y="142" font-family="Inter,Segoe UI,sans-serif" font-size="64" font-weight="700" fill="#3f4747">translators-api</text>
-<text x="124" y="190" font-family="Inter,Segoe UI,sans-serif" font-size="24" fill="#667070">One HTTP boundary for many translation backends.</text>
-<g transform="translate(120 246)">
-  <rect width="250" height="136" rx="20" fill="#667575"/>
-  <text x="125" y="58" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#eee9e2">CLIENT</text>
-  <text x="125" y="92" text-anchor="middle" font-family="ui-monospace,monospace" font-size="18" fill="#d7d0c8">HTTP / JSON</text>
-</g>
-<path d="M392 314h110" fill="none" stroke="#536161" stroke-width="6" stroke-linecap="round"/>
-<path d="m488 294 24 20-24 20" fill="none" stroke="#536161" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-<g transform="translate(530 222)">
-  <rect width="392" height="184" rx="24" fill="#b7a99a" stroke="#536161" stroke-width="4"/>
-  <circle cx="196" cy="92" r="34" fill="#eee9e2" stroke="#667575" stroke-width="8"/>
-  <path d="M184 92h24M196 80v24" stroke="#667575" stroke-width="8" stroke-linecap="round"/>
-  <text x="196" y="52" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="24" font-weight="700" fill="#3f4747">UNIFIED API</text>
-  <text x="196" y="150" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" fill="#4f5a5a">validation · routing · fallback</text>
-  <text x="196" y="176" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" fill="#4f5a5a">auth · limits · caching</text>
-</g>
-<path d="M944 276h88M944 330h88M944 384h88" fill="none" stroke="#536161" stroke-width="6" stroke-linecap="round"/>
-<path d="m1018 256 24 20-24 20M1018 310l24 20-24 20M1018 364l24 20-24 20" fill="none" stroke="#536161" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-<g transform="translate(1064 240)">
-  <rect width="184" height="62" rx="14" fill="#a7b2a3" stroke="#536161" stroke-width="3"/>
-  <text x="92" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#3f4747">Google</text>
-</g>
-<g transform="translate(1270 240)">
-  <rect width="184" height="62" rx="14" fill="#9eabb2" stroke="#536161" stroke-width="3"/>
-  <text x="92" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#3f4747">Bing</text>
-</g>
-<g transform="translate(1064 326)">
-  <rect width="184" height="62" rx="14" fill="#b19a9d" stroke="#536161" stroke-width="3"/>
-  <text x="92" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#3f4747">DeepL</text>
-</g>
-<g transform="translate(1270 326)">
-  <rect width="184" height="62" rx="14" fill="#b8ab98" stroke="#536161" stroke-width="3"/>
-  <text x="92" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#3f4747">More backends</text>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" role="img" aria-labelledby="title desc">
+<title id="title">translators-api — one HTTP contract for many translation backends</title>
+<desc id="desc">A project-native editorial diagram showing a JSON translation request entering translators-api, passing through validation and fallback routing, then reaching multiple upstream translation backends.</desc>
+<rect width="1600" height="600" fill="#EEE8DF"/>
+<rect x="54" y="48" width="1492" height="504" rx="34" fill="#E5DDD3" stroke="#33403D" stroke-width="3"/>
+<text x="104" y="112" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" letter-spacing="3" fill="#687773">HTTP TRANSLATION GATEWAY</text>
+<text x="104" y="176" font-family="Inter,Segoe UI,sans-serif" font-size="56" font-weight="760" fill="#33403D">One contract. Many translators.</text>
+<text x="104" y="218" font-family="Inter,Segoe UI,sans-serif" font-size="24" fill="#687773">A small FastAPI boundary around Python Translators.</text>
+<g transform="translate(104 290)"><rect width="330" height="186" rx="24" fill="#33403D"/><text x="28" y="40" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="18" font-weight="700" fill="#EEE8DF">POST /v1/translate</text><path d="M28 58h274" stroke="#65716E" stroke-width="2"/><text x="28" y="92" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16" fill="#D8D1C8">{ text: "Hello" }</text><text x="28" y="121" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16" fill="#D8D1C8">{ source: "en" }</text><text x="28" y="150" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16" fill="#D8D1C8">{ target: "zh-CN" }</text><rect x="28" y="160" width="92" height="6" rx="3" fill="#B57F74"/></g>
+<path d="M462 383h92" stroke="#687773" stroke-width="5" stroke-linecap="round"/><path d="m540 363 22 20-22 20" fill="none" stroke="#687773" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="translate(578 288)"><rect width="420" height="190" rx="26" fill="#B8B09F" stroke="#33403D" stroke-width="3"/><rect x="28" y="28" width="108" height="44" rx="14" fill="#EEE8DF" stroke="#33403D" stroke-width="2"/><text x="82" y="57" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="17" font-weight="700" fill="#33403D">GATEWAY</text><text x="28" y="104" font-family="Inter,Segoe UI,sans-serif" font-size="28" font-weight="700" fill="#33403D">translators-api</text><text x="28" y="137" font-family="Inter,Segoe UI,sans-serif" font-size="17" fill="#687773">validate · authenticate · limit</text><text x="28" y="166" font-family="Inter,Segoe UI,sans-serif" font-size="17" fill="#687773">route · fallback · request ID</text><path d="M354 112h34M371 95v34" stroke="#B57F74" stroke-width="5" stroke-linecap="round"/></g>
+<path d="M1018 326h72M1018 382h72M1018 438h72" stroke="#687773" stroke-width="5" stroke-linecap="round"/><path d="m1078 306 22 20-22 20M1078 362l22 20-22 20M1078 418l22 20-22 20" fill="none" stroke="#687773" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="translate(1124 294)"><rect width="174" height="64" rx="16" fill="#A7B2A7" stroke="#33403D" stroke-width="2"/><text x="87" y="41" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#33403D">Bing</text></g>
+<g transform="translate(1320 294)"><rect width="174" height="64" rx="16" fill="#EEE8DF" stroke="#33403D" stroke-width="2"/><text x="87" y="41" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#33403D">Google</text></g>
+<g transform="translate(1124 374)"><rect width="174" height="64" rx="16" fill="#B57F74" stroke="#33403D" stroke-width="2"/><text x="87" y="41" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#EEE8DF">DeepL</text></g>
+<g transform="translate(1320 374)"><rect width="174" height="64" rx="16" fill="#C6B7A8" stroke="#33403D" stroke-width="2"/><text x="87" y="41" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#33403D">More</text></g>
+<path d="M104 520h1390" stroke="#33403D" stroke-width="2" opacity=".25"/><text x="104" y="535" font-family="ui-monospace,SFMono-Regular,Consolas,monospace" font-size="16" fill="#687773">JSON  ·  BATCH  ·  HTML  ·  FALLBACK  ·  AUTH  ·  RATE LIMIT</text>
 </svg>

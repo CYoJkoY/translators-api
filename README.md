@@ -1,16 +1,18 @@
 <div align="center">
 
-<img src="assets/readme/translators-api-hero.svg" alt="translators-api — an HTTP gateway for the Python Translators library" width="100%">
+<img src="assets/translators-api-icon.svg" alt="translators-api icon" width="112">
+
+<img src="assets/readme/translators-api-hero.svg" alt="translators-api — one HTTP contract for many translation backends" width="100%">
 
 # translators-api
 
-**A self-hosted HTTP gateway that exposes the Python [Translators](https://github.com/UlionTse/translators) library as a small JSON API.**
+**A small, self-hosted HTTP gateway that turns Python [Translators](https://github.com/UlionTse/translators) into a conventional JSON API.**
 
 <p>
-  <a href="https://github.com/UlionTse/translators"><img src="https://img.shields.io/badge/backend-Translators-6F6B63?style=flat-square" alt="Powered by Translators"></a>
-  <img src="https://img.shields.io/badge/Python-3.10%2B-8D8172?style=flat-square" alt="Python 3.10 or newer">
-  <img src="https://img.shields.io/badge/FastAPI-HTTP%20API-9A8F83?style=flat-square" alt="FastAPI HTTP API">
-  <img src="https://img.shields.io/badge/license-GPL--3.0-6F6B63?style=flat-square" alt="GPL-3.0 license">
+  <img src="https://img.shields.io/badge/Python-3.10%2B-33403D?style=flat-square" alt="Python 3.10 or newer">
+  <img src="https://img.shields.io/badge/FastAPI-0.115%2B-687773?style=flat-square" alt="FastAPI 0.115 or newer">
+  <img src="https://img.shields.io/badge/Translators-6.x-B57F74?style=flat-square" alt="Translators 6.x">
+  <img src="https://img.shields.io/badge/license-GPL--3.0-8F8174?style=flat-square" alt="GPL-3.0-only">
 </p>
 
 <p>
@@ -29,39 +31,34 @@
 <a name="readme-overview"></a>
 ## <img src="assets/readme/icons/overview.svg" width="24" height="24" alt=""> Overview
 
-`translators-api` puts a conventional HTTP boundary in front of the Python **Translators** library.
+`translators-api` adds a stable HTTP boundary around the Python **Translators** library.
 
-The server accepts JSON requests, validates them, selects an upstream translator, executes the provider call, and returns a predictable response. Clients only need HTTP; they do not need to embed the Python package or implement provider-specific integrations.
+The gateway accepts JSON, validates the request, applies optional authentication and process-local rate limiting, selects an upstream translator, performs the translation without blocking the FastAPI event loop, and returns a predictable response with a request ID.
 
-```text
-┌───────────────────────────────┐
-│           Clients             │
-│ browser · desktop · web · CI  │
-└──────────────┬────────────────┘
-               │ HTTP + JSON
-               ▼
-┌───────────────────────────────┐
-│        translators-api        │
-│ validation · auth · limits    │
-│ fallback · errors · IDs       │
-└──────────────┬────────────────┘
-               │
-               ▼
-┌───────────────────────────────┐
-│          Translators          │
-│ provider-specific adapters    │
-└───────────────────────────────┘
-```
+It is intentionally a gateway rather than a new translation engine: provider implementations, provider-specific behavior, language discovery, and upstream network interaction remain the responsibility of [UlionTse/translators](https://github.com/UlionTse/translators).
 
-### Why a gateway
+### What it gives clients
 
-Without a gateway, every client that needs translation has to understand the Python runtime or a provider-specific integration. The gateway centralizes that complexity and gives every client the same contract.
+| Client side | Gateway responsibility | Upstream |
+| :--- | :--- | :--- |
+| HTTP + JSON | validation and error normalization | provider-specific translation |
+| one request contract | translator selection | language/provider behavior |
+| optional bearer token | rate limiting | upstream network access |
+| request ID | fallback orchestration | service availability |
 
-### Scope
+### Included capabilities
 
-The project is intentionally thin. It does **not** reimplement translation providers and it does not currently provide a database, user-account system, distributed queue, shared cache, or cluster-wide rate limiter.
+- Single-text translation
+- Batch translation with bounded concurrency
+- HTML-fragment translation
+- Translator and language discovery
+- Automatic fallback across configured translators
+- Optional bearer authentication
+- Request IDs in headers and response bodies
+- Health and readiness endpoints
+- Docker, Python package, and Windows x64 delivery paths
 
-The upstream [Translators project](https://github.com/UlionTse/translators) remains responsible for provider integrations, provider-specific behavior, language maps, and upstream network interaction.
+The project deliberately does **not** provide a database, account system, distributed queue, shared cache, or cluster-wide rate limiter.
 
 ---
 
@@ -72,7 +69,8 @@ The upstream [Translators project](https://github.com/UlionTse/translators) rema
 
 - Python `3.10+`
 - Network access to the selected upstream translator
-- Optional Docker or Windows x64 for the alternative deployment paths
+- Docker for container deployment
+- Windows x64 for the portable executable bundle
 
 ### Install from source
 
@@ -100,21 +98,19 @@ python -m pip install --upgrade pip
 python -m pip install .
 ```
 
-Install test dependencies as well:
+For development and tests:
 
 ```bash
 python -m pip install -e ".[test]"
 ```
 
-### Start
-
-With Uvicorn:
+### Start the server
 
 ```bash
 uvicorn translators_api.main:app --host 127.0.0.1 --port 8000
 ```
 
-Or with the packaged CLI:
+Or use the packaged CLI:
 
 ```bash
 translators-api --host 127.0.0.1 --port 8000
@@ -122,7 +118,7 @@ translators-api --host 127.0.0.1 --port 8000
 
 The CLI also supports `--log-level` and `--version`.
 
-### Verify
+### Check health
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -135,15 +131,15 @@ curl http://127.0.0.1:8000/health
 }
 ```
 
-Interactive documentation is available at:
+Then open:
 
-| URL | Purpose |
+| Path | Purpose |
 | :--- | :--- |
 | `/docs` | Swagger UI |
 | `/redoc` | ReDoc |
 | `/openapi.json` | OpenAPI document |
-| `/health` | Liveness |
-| `/ready` | Readiness |
+| `/health` | Process liveness |
+| `/ready` | Upstream translator readiness |
 
 ### First translation
 
@@ -158,7 +154,7 @@ curl -X POST http://127.0.0.1:8000/v1/translate \
   }'
 ```
 
-Response shape:
+A successful response follows this shape:
 
 ```json
 {
@@ -177,14 +173,16 @@ Response shape:
 <a name="readme-api"></a>
 ## <img src="assets/readme/icons/api.svg" width="24" height="24" alt=""> API
 
-All application endpoints are under `/v1`. `/health` and `/ready` are operational endpoints and remain outside that namespace.
+Application endpoints live under `/v1`. Health and readiness endpoints stay outside that namespace so they remain easy to use from process and container checks.
+
+### Endpoint map
 
 | Method | Endpoint | Purpose |
 | :--- | :--- | :--- |
-| `GET` | `/health` | Confirm the process is alive |
-| `GET` | `/ready` | Confirm the upstream translator pool is usable |
-| `GET` | `/v1/translators` | List available translator backends |
-| `GET` | `/v1/languages` | List languages for one translator |
+| `GET` | `/health` | Confirm that the process is alive |
+| `GET` | `/ready` | Check whether upstream translators are available |
+| `GET` | `/v1/translators` | Discover available translator backends |
+| `GET` | `/v1/languages` | Discover languages for a translator |
 | `POST` | `/v1/translate` | Translate one text value |
 | `POST` | `/v1/translate/batch` | Translate multiple text values |
 | `POST` | `/v1/translate/html` | Translate an HTML fragment |
@@ -200,14 +198,12 @@ All application endpoints are under `/v1`. `/health` and `/ready` are operationa
 }
 ```
 
-| Field | Type | Default | Description |
+| Field | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |
-| `text` | string | required | Non-blank text. Maximum size is `MAX_TEXT_LENGTH`. |
-| `source` | string | `auto` | Source language identifier. |
-| `target` | string | `en` | Target language identifier. |
-| `translator` | string or `null` | configured default | Specific translator, or `auto` / `detect` / `all` for fallback mode. |
-
-A successful response includes the actual translator used and a `fallback` flag.
+| `text` | string | required | Non-blank text, limited by `MAX_TEXT_LENGTH` |
+| `source` | string | `auto` | Source language identifier |
+| `target` | string | `en` | Target language identifier |
+| `translator` | string or `null` | configured default | Concrete backend or automatic fallback mode |
 
 ### `POST /v1/translate/batch`
 
@@ -220,7 +216,7 @@ A successful response includes the actual translator used and a `fallback` flag.
 }
 ```
 
-The service translates items concurrently up to `MAX_BATCH_CONCURRENCY`. The returned `items` keep the original order through an explicit `index` field.
+Batch translation uses a semaphore to cap upstream concurrency at `MAX_BATCH_CONCURRENCY`. Returned items preserve input order with an explicit `index`.
 
 ```json
 {
@@ -237,7 +233,7 @@ The service translates items concurrently up to `MAX_BATCH_CONCURRENCY`. The ret
 }
 ```
 
-When different items use different fallback backends, `translator` can be `mixed`.
+When individual items use different fallback backends, `translator` can be `mixed`.
 
 ### `POST /v1/translate/html`
 
@@ -250,13 +246,15 @@ When different items use different fallback backends, `translator` can be `mixed
 }
 ```
 
-HTML translation follows the same translator-selection and fallback rules as text translation. Its size is limited by `MAX_TEXT_LENGTH`.
+HTML requests follow the same translator selection and fallback rules as text requests. The input is limited by `MAX_TEXT_LENGTH`.
 
-### `GET /v1/translators`
+### Translator discovery
 
 ```bash
 curl http://127.0.0.1:8000/v1/translators
 ```
+
+Example shape:
 
 ```json
 {
@@ -266,57 +264,57 @@ curl http://127.0.0.1:8000/v1/translators
 }
 ```
 
-The exact translator list comes from the installed upstream package and can change independently of this API project.
+The actual list is provided by the installed upstream package and may change independently of this repository.
 
-### `GET /v1/languages`
+### Language discovery
 
 ```bash
 curl "http://127.0.0.1:8000/v1/languages?translator=bing"
 ```
 
-The returned language identifiers are provided by the selected upstream backend.
+Language identifiers come from the selected upstream backend.
 
 ### Automatic fallback
 
-The fallback mechanism is intentionally explicit:
+Use `auto`, `detect`, or `all` to route through the configured fallback sequence:
 
 ```text
-translator = concrete name
-       │
-       └──► try that backend only
-
-translator = auto / detect / all
-       │
-       ▼
-FALLBACK_TRANSLATORS
-       │
-       ├── success ──► response
-       ├── failure ──► next backend
-       └── all fail ─► 502
+request
+  │
+  ├─ concrete translator ──► that backend only
+  │
+  └─ auto / detect / all
+          │
+          ▼
+  FALLBACK_TRANSLATORS
+          │
+          ├─ success ──► response
+          ├─ failure ──► next backend
+          └─ all fail ─► 502
 ```
 
-The response reports `fallback: true` when an automatic request succeeds only after moving beyond the first candidate.
+The response sets `fallback: true` when an automatic request succeeds only after moving beyond the first candidate.
 
 ### Authentication
 
-Set `TRANSLATORS_API_KEY` to require a bearer token for `/v1/*`:
+Set `TRANSLATORS_API_KEY` to protect `/v1/*` with a bearer token:
 
 ```bash
 curl http://127.0.0.1:8000/v1/translators \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-When the environment variable is empty or unset, authentication is disabled. This default is convenient for local development; it should not be used as the security boundary of a public deployment.
+When the variable is empty or unset, authentication is disabled. This is convenient for local development, but it should not be treated as the security boundary of a public deployment.
 
-`/health` and `/ready` are intentionally not protected so container and process health checks can reach them.
+`/health` and `/ready` remain unprotected so infrastructure checks can reach them.
 
 ### Request IDs
 
-Every application response includes the `X-Request-ID` header. Translation responses and structured errors also expose the identifier as `request_id`.
+Every application response includes `X-Request-ID`.
 
-### Errors
+Successful translation responses and structured errors also expose the same identifier as `request_id`.
 
-The JSON shape is consistent across application errors:
+### Error contract
 
 ```json
 {
@@ -328,11 +326,11 @@ The JSON shape is consistent across application errors:
 }
 ```
 
-| Status | Code | Meaning |
+| HTTP status | Code | Meaning |
 | :--- | :--- | :--- |
 | `400` | `unknown_translator` / `request_error` | Invalid translator or HTTP-level request problem |
 | `401` | `unauthorized` | Missing or invalid bearer token |
-| `413` | `payload_too_large` | Text, HTML, or batch limit exceeded |
+| `413` | `payload_too_large` | Text, HTML, or batch size exceeded |
 | `422` | `validation_error` | Request body failed schema validation |
 | `429` | `rate_limited` | Local rate limit exceeded |
 | `502` | `translation_failed` / `request_error` | Upstream translation failure |
@@ -342,31 +340,31 @@ The JSON shape is consistent across application errors:
 <a name="readme-configuration"></a>
 ## <img src="assets/readme/icons/configuration.svg" width="24" height="24" alt=""> Configuration
 
-Configuration is provided through environment variables. See [`.env.example`](.env.example) for the same defaults in file form.
+Configuration is environment-based. The repository also includes [`.env.example`](.env.example).
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `TRANSLATORS_API_KEY` | empty | Bearer token for `/v1/*` authentication. |
-| `HOST` | `0.0.0.0` | Default bind address used by the CLI. |
-| `PORT` | `8000` | Default HTTP port used by the CLI. |
-| `LOG_LEVEL` | `info` | Uvicorn log level. |
-| `MAX_TEXT_LENGTH` | `20000` | Maximum text or HTML length in characters. |
-| `MAX_BATCH_ITEMS` | `50` | Maximum number of items in one batch. |
-| `MAX_BATCH_TOTAL_LENGTH` | `100000` | Maximum combined batch length in characters. |
-| `MAX_BATCH_CONCURRENCY` | `5` | Maximum concurrent upstream calls for a batch. |
-| `UPSTREAM_TIMEOUT` | `30` | Upstream timeout in seconds. |
-| `RATE_LIMIT_REQUESTS` | `120` | Requests allowed per rate-limit window. |
-| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window length in seconds. |
-| `DEFAULT_TRANSLATOR` | `bing` | Backend used when `translator` is omitted. |
-| `FALLBACK_TRANSLATORS` | `bing,google,deepl,baidu` | Ordered candidates used by automatic selection. |
+| `TRANSLATORS_API_KEY` | empty | Bearer token for `/v1/*` |
+| `HOST` | `0.0.0.0` | CLI default bind address |
+| `PORT` | `8000` | CLI default port |
+| `LOG_LEVEL` | `info` | Uvicorn log level |
+| `MAX_TEXT_LENGTH` | `20000` | Maximum text or HTML length |
+| `MAX_BATCH_ITEMS` | `50` | Maximum items per batch |
+| `MAX_BATCH_TOTAL_LENGTH` | `100000` | Maximum combined batch length |
+| `MAX_BATCH_CONCURRENCY` | `5` | Maximum concurrent upstream calls |
+| `UPSTREAM_TIMEOUT` | `30` | Upstream timeout in seconds |
+| `RATE_LIMIT_REQUESTS` | `120` | Requests per rate-limit window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window in seconds |
+| `DEFAULT_TRANSLATOR` | `bing` | Translator used when omitted |
+| `FALLBACK_TRANSLATORS` | `bing,google,deepl,baidu` | Ordered automatic fallback candidates |
 
-### Rate-limit scope
+### Rate limiting
 
-The built-in limiter is stored in application memory and is therefore **process-local**. Multiple workers or instances do not share the same counter.
+The built-in limiter is **process-local**. Each process keeps its own in-memory counters.
 
-For multi-worker or horizontally scaled deployments, use a shared limit at the reverse proxy or edge rather than relying on this in-process limiter as a global quota.
+For multiple workers or horizontally scaled deployments, put shared rate limiting at the reverse proxy or edge instead of treating this limiter as a global quota.
 
-### Environment example
+### Example environment
 
 ```text
 TRANSLATORS_API_KEY=
@@ -392,46 +390,52 @@ FALLBACK_TRANSLATORS=bing,google,deepl,baidu
 <a name="readme-architecture"></a>
 ## <img src="assets/readme/icons/architecture.svg" width="24" height="24" alt=""> Architecture
 
-The implementation keeps each concern in a small, explicit module:
+The codebase keeps the gateway boundary deliberately small:
 
 ```text
 src/translators_api/
 ├── __init__.py   package version
 ├── cli.py        CLI entry point
 ├── config.py     environment-backed settings
-├── models.py     Pydantic request / response models
-├── service.py    upstream Translators adapter + fallback
+├── models.py     Pydantic request/response models
+├── service.py    upstream adapter + fallback
 └── main.py       FastAPI routes, auth, limits, errors
 ```
 
-### Responsibility boundary
+### Request path
 
 ```text
-┌──────────────────────────────────────────────┐
-│                 API layer                    │
-│ HTTP · validation · auth · limits · errors   │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│              TranslationService              │
-│ selection · fallback · async thread bridge   │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────┐
-│               Translators                    │
-│ provider-specific translation implementations│
-└──────────────────────────────────────────────┘
+HTTP client
+    │
+    ▼
+FastAPI route
+    │
+    ├─ validate payload
+    ├─ authenticate
+    ├─ enforce rate limit
+    └─ allocate request ID
+    │
+    ▼
+TranslationService
+    │
+    ├─ choose translator
+    ├─ try fallback candidates
+    └─ run synchronous upstream work in a thread
+    │
+    ▼
+Translators
+    │
+    └─ provider-specific implementations
 ```
 
-The gateway does not duplicate the provider implementations from `Translators`. Synchronous upstream calls are executed through `asyncio.to_thread(...)` so normal provider work does not block the FastAPI event loop.
+Synchronous upstream calls are bridged through `asyncio.to_thread(...)`, so normal provider work does not block the FastAPI event loop.
 
-Batch requests add an `asyncio.Semaphore` to bound concurrent provider calls.
+Batch requests add `asyncio.Semaphore` to bound concurrent provider calls.
 
-### Readiness model
+### Health versus readiness
 
-`/health` checks process liveness only. `/ready` attempts to discover the available translator pool and returns `503` when the upstream translator engine is unavailable or no translator is exposed.
+- `/health` checks process liveness.
+- `/ready` attempts translator discovery and returns `503` when the upstream engine is unavailable or no translator is exposed.
 
 ---
 
@@ -457,9 +461,9 @@ docker run --rm \
   translators-api
 ```
 
-The image runs the same FastAPI application as the source installation and exposes port `8000`.
+The container runs the same FastAPI application and exposes port `8000`.
 
-Release automation publishes versioned images to GitHub Container Registry. Stable tags additionally update `latest`, while development tags do not overwrite it.
+Release automation publishes versioned images to GitHub Container Registry. Stable tags additionally update `latest`; development tags do not.
 
 ```bash
 docker pull ghcr.io/cyojkoy/translators-api:latest
@@ -467,20 +471,20 @@ docker pull ghcr.io/cyojkoy/translators-api:latest
 
 ### Python distribution
 
-Release builds produce Python distributions. Local installation from a checkout is:
+Install a published package from a release artifact or install directly from a checkout:
 
 ```bash
 python -m pip install .
 translators-api --host 0.0.0.0 --port 8000
 ```
 
-Use the repository's [Releases](https://github.com/CYoJkoY/translators-api/releases) page for published build artifacts.
+See [Releases](https://github.com/CYoJkoY/translators-api/releases) for published artifacts.
 
 ### Windows x64 portable bundle
 
 Release automation builds an `onedir` PyInstaller bundle for Windows x64.
 
-Example filename:
+Example artifact:
 
 ```text
 translators-api-v0.1.0-windows-x64.zip
@@ -492,9 +496,9 @@ After extraction:
 .\translators-api.exe --host 127.0.0.1 --port 8000
 ```
 
-The bundle includes the required runtime files and does not require a separate Python installation on the target machine.
+The bundle includes the runtime files needed to run without a separate Python installation.
 
-### Production topology
+### Recommended production boundary
 
 ```text
 Internet
@@ -502,18 +506,18 @@ Internet
    ▼
 TLS / reverse proxy
    │
-   ├── access policy
-   ├── shared rate limiting
-   └── request logging
-          │
-          ▼
-   translators-api
-          │
-          ▼
-      Translators
+   ├─ access policy
+   ├─ shared rate limiting
+   └─ request logging
+        │
+        ▼
+  translators-api
+        │
+        ▼
+    Translators
 ```
 
-Keep `TRANSLATORS_API_KEY` outside source control, terminate TLS at the edge, and do not treat the process-local limiter as a cluster-wide security control.
+Keep `TRANSLATORS_API_KEY` outside source control. Terminate TLS at the edge. Do not use the process-local limiter as a cluster-wide security control.
 
 ---
 
@@ -538,7 +542,7 @@ python -m pytest
 python -m compileall -q src
 ```
 
-### Windows bundle build
+### Build the Windows bundle
 
 ```powershell
 python -m pip install -e ".[build]"
@@ -559,39 +563,48 @@ python -m PyInstaller `
 
 Pull requests and pushes to `main` run the test matrix on Python `3.10`, `3.11`, `3.12`, and `3.13`.
 
-The CI pipeline installs the project, compiles the source, runs the test suite, and then builds the Docker image.
-
-Tag-triggered release automation additionally:
+The CI pipeline:
 
 ```text
-validate tag + package version
-          ↓
-build Python distributions
-          ↓
-build + smoke-test Windows bundle
-          ↓
-build + publish Docker image
-          ↓
-create GitHub Release
+install
+  ↓
+compile
+  ↓
+pytest
+  ↓
+Docker build
 ```
 
-Release tags follow the form:
+Release automation first validates the package and tag, then builds Python distributions, the Windows bundle, and the container image before creating the GitHub Release.
+
+Release tags follow:
 
 ```text
-vX.Y.Z        → stable release
-vX.Y.Z.devN   → prerelease
+vX.Y.Z       → stable release
+vX.Y.Z.devN  → development prerelease
 ```
 
-### Development principle
+### Repository layout
 
-Keep the HTTP contract provider-neutral. Provider-specific behavior should remain upstream unless a new capability represents a stable, reusable part of the gateway contract.
+```text
+.github/workflows/   CI and release automation
+assets/              project icon + README visual system
+src/                 application source
+tests/               API tests
+Dockerfile           container build
+pyproject.toml       package metadata
+```
+
+### Design boundary
+
+Keep the HTTP contract provider-neutral. Provider-specific behavior should remain upstream unless it becomes a stable, reusable part of the gateway contract.
 
 ---
 
 <a name="readme-compatibility"></a>
 ## <img src="assets/readme/icons/compatibility.svg" width="24" height="24" alt=""> Compatibility
 
-| Component | Current contract |
+| Component | Supported contract |
 | :--- | :--- |
 | Python | `>=3.10` |
 | FastAPI | `>=0.115,<1` |
@@ -601,37 +614,35 @@ Keep the HTTP contract provider-neutral. Provider-specific behavior should remai
 | Windows bundle | Windows x64 |
 | Client | Any runtime capable of HTTP requests |
 
-The upstream `Translators` project has its own provider availability, language support, and runtime behavior. Those details can change independently of this gateway.
-
-Use the [upstream repository](https://github.com/UlionTse/translators) as the authoritative source for the provider matrix.
+The upstream `Translators` project controls provider availability, language support, and provider-specific behavior. See the [upstream repository](https://github.com/UlionTse/translators) for the authoritative provider matrix.
 
 ---
 
 <a name="readme-limitations"></a>
 ## <img src="assets/readme/icons/limitations.svg" width="24" height="24" alt=""> Limitations
 
-A gateway cannot remove limitations imposed by the services behind it.
+A gateway cannot remove limitations imposed by upstream services.
 
 | Area | Limitation |
 | :--- | :--- |
-| Provider availability | A provider may throttle, block, change, or remove an access path. |
-| Translation quality | Output quality depends on the selected upstream backend. |
-| Network environment | Geography, connectivity, anti-bot controls, headers, cookies, and provider behavior can affect requests. |
-| Upstream quotas | Provider-side restrictions still apply. |
-| Fallback | Fallback improves resilience but cannot help if every candidate fails. |
-| Scaling | Built-in rate limiting is process-local. |
-| Privacy | Submitted translation content is sent to the selected upstream provider. |
+| Provider availability | A provider can throttle, block, change, or remove an access path |
+| Translation quality | Results depend on the selected upstream backend |
+| Network environment | Geography, connectivity, anti-bot behavior, headers, cookies, and provider changes can affect requests |
+| Upstream quotas | Provider-side restrictions still apply |
+| Fallback | Fallback improves resilience but cannot help when every candidate fails |
+| Scaling | The built-in rate limiter is process-local |
+| Privacy | Translation content is sent to the selected upstream provider |
 
-This project should therefore be treated as an **integration and orchestration layer**, not as an independent translation provider.
+Treat `translators-api` as an integration and orchestration layer, not as an independent translation provider.
 
 ---
 
 <a name="readme-roadmap"></a>
 ## <img src="assets/readme/icons/roadmap.svg" width="24" height="24" alt=""> Roadmap
 
-The current project deliberately focuses on a small, useful gateway.
+The current scope favors a small gateway with a predictable contract.
 
-Possible future directions include:
+Possible future directions:
 
 ```text
 shared / distributed rate limiting
@@ -641,7 +652,7 @@ provider capability metadata
 broader deployment integrations
 ```
 
-These items are ideas rather than part of the current API contract until implemented.
+These are ideas, not current API guarantees.
 
 ---
 
@@ -650,14 +661,16 @@ These items are ideas rather than part of the current API contract until impleme
 
 `translators-api` builds on **[UlionTse/translators](https://github.com/UlionTse/translators)**.
 
-The upstream project provides the translation-provider implementations and Python-facing functionality such as text translation, HTML translation, translator discovery, and language discovery. This repository turns a focused subset of that capability into an HTTP service.
+The upstream project provides translation-provider implementations and Python-facing capabilities such as text translation, HTML translation, translator discovery, and language discovery.
 
-See the upstream project for:
+Use the upstream project for:
 
 - supported provider services;
 - provider-specific parameters and behavior;
 - upstream language support;
 - upstream installation and compatibility details.
+
+This repository is the HTTP boundary and orchestration layer around that upstream functionality.
 
 ---
 
@@ -675,13 +688,13 @@ Canonical support page: **https://cyojkoy.github.io/Payment/**
 ---
 
 <a name="readme-contributing"></a>
-## <img src="assets/readme/icons/development.svg" width="24" height="24" alt=""> Contributing
+## <img src="assets/readme/icons/contributing.svg" width="24" height="24" alt=""> Contributing
 
-Contributions should improve the API contract, reliability, testing, documentation, deployment experience, or maintainability.
+Contributions should improve the HTTP contract, reliability, tests, documentation, deployment experience, or maintainability.
 
-Before adding provider-specific HTTP behavior, check whether the capability already belongs in the upstream `Translators` project. Keep this gateway small, predictable, and provider-neutral where practical.
+Before adding provider-specific HTTP behavior, check whether the capability belongs in the upstream `Translators` project. Keep this gateway small, predictable, and provider-neutral where practical.
 
-For defects and feature requests, use the repository's [GitHub Issues](https://github.com/CYoJkoY/translators-api/issues).
+For bugs and feature requests, use [GitHub Issues](https://github.com/CYoJkoY/translators-api/issues).
 
 ---
 
@@ -698,7 +711,7 @@ The project wraps the separate `Translators` dependency. Review the upstream pro
 
 <div align="center">
 
-**translators-api** · one HTTP boundary for many translation backends
+**translators-api** · one HTTP contract for many translation backends
 
 [Repository](https://github.com/CYoJkoY/translators-api) · [Issues](https://github.com/CYoJkoY/translators-api/issues) · [Releases](https://github.com/CYoJkoY/translators-api/releases)
 

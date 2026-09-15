@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
-<rect x="5" y="5" width="54" height="54" rx="15" fill="#B7AAA0" stroke="#303938" stroke-width="2.5"/>
-<g fill="none" stroke="#303938" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-<circle cx="32" cy="32" r="21"/><path d="M32 21v22M21 32h22"/>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="t d"><title id="t">Quick Start</title><desc id="d">A terminal prompt launching a translation request.</desc><rect x="4.5" y="6" width="23" height="19" rx="3" fill="#EEE8DF" stroke="#33403D" stroke-width="1.8"/><path d="m9 12 3.5 3L9 18" fill="none" stroke="#B57F74" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 18h6" stroke="#687773" stroke-width="2" stroke-linecap="round"/><path d="M22 9.5h2" stroke="#A7B2A7" stroke-width="2" stroke-linecap="round"/></svg>

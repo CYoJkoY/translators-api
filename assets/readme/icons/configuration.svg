@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
-<rect x="5" y="5" width="54" height="54" rx="15" fill="#C0A99F" stroke="#303938" stroke-width="2.5"/>
-<g fill="none" stroke="#303938" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-<path d="M15 20h34M15 32h34M15 44h34"/><circle cx="25" cy="20" r="4"/><circle cx="39" cy="32" r="4"/><circle cx="29" cy="44" r="4"/>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="t d"><title id="t">Configuration</title><desc id="d">Configuration sliders for gateway behavior.</desc><path d="M6 9h20M6 16h20M6 23h20" stroke="#687773" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="9" r="3" fill="#A7B2A7" stroke="#33403D" stroke-width="1.8"/><circle cx="21" cy="16" r="3" fill="#B57F74" stroke="#33403D" stroke-width="1.8"/><circle cx="15" cy="23" r="3" fill="#EEE8DF" stroke="#33403D" stroke-width="1.8"/></svg>
