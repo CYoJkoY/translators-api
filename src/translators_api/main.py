@@ -339,26 +339,103 @@ async def translate(request: Request, payload: TranslateRequest) -> TranslateRes
 @app.post("/v1/translate/batch", response_model=BatchTranslateResponse, dependencies=[Depends(protected)])
 async def translate_batch(request: Request, payload: BatchTranslateRequest) -> BatchTranslateResponse:
     ensure_batch(payload)
+
     semaphore = asyncio.Semaphore(settings.max_batch_concurrency)
 
     async def translate_one(text: str):
         async with semaphore:
             return await service.translate(text, payload.source, payload.target, payload.translator)
 
-    results = await asyncio.gather(*(translate_one(text) for text in payload.texts))
-    for result in results:
-        _metric_translation(result.translator, result.fallback)
-    translators_used = {result.translator for result in results}
-    translator_name = next(iter(translators_used)) if len(translators_used) == 1 else "mixed"
+    tasks = [asyncio.create_task(translate_one(text)) for text in payload.texts]
+    done, pending = await asyncio.wait(tasks, timeout=settings.batch_timeout)
+
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+
+    items: list[BatchItem] = []
+    successful_results = []
+    for index, (text, task) in enumerate(zip(payload.texts, tasks, strict=True)):
+        if task in pending:
+            items.append(
+                BatchItem(
+                    index=index,
+                    text=text,
+                    translation=None,
+                    status="error",
+                    error_code="batch_timeout",
+                    error_message="translation did not complete before the batch deadline",
+                )
+            )
+            continue
+
+        try:
+            result = task.result()
+        except UnknownTranslatorError as exc:
+            _metric_inc("translation_failures_total")
+            items.append(
+                BatchItem(
+                    index=index,
+                    text=text,
+                    translation=None,
+                    status="error",
+                    error_code="unknown_translator",
+                    error_message=str(exc),
+                )
+            )
+        except TranslationServiceError:
+            _metric_inc("translation_failures_total")
+            items.append(
+                BatchItem(
+                    index=index,
+                    text=text,
+                    translation=None,
+                    status="error",
+                    error_code="translation_failed",
+                    error_message="translation failed",
+                )
+            )
+        except Exception:
+            _metric_inc("translation_failures_total")
+            items.append(
+                BatchItem(
+                    index=index,
+                    text=text,
+                    translation=None,
+                    status="error",
+                    error_code="internal_error",
+                    error_message="unexpected translation failure",
+                )
+            )
+        else:
+            _metric_translation(result.translator, result.fallback)
+            successful_results.append(result)
+            items.append(
+                BatchItem(
+                    index=index,
+                    text=text,
+                    translation=result.translation,
+                    status="success",
+                )
+            )
+
+    translators_used = {result.translator for result in successful_results}
+    translator_name = (
+        next(iter(translators_used)) if len(translators_used) == 1 else "mixed" if translators_used else "none"
+    )
+    completed = len(successful_results)
+    failed = len(items) - completed
     return BatchTranslateResponse(
-        items=[
-            BatchItem(index=index, text=text, translation=result.translation)
-            for index, (text, result) in enumerate(zip(payload.texts, results, strict=True))
-        ],
+        items=items,
         source=payload.source,
         target=payload.target,
         translator=translator_name,
-        fallback=any(result.fallback for result in results),
+        fallback=any(result.fallback for result in successful_results),
+        completed=completed,
+        failed=failed,
+        partial_success=completed > 0 and failed > 0,
+        deadline_exceeded=bool(pending),
         request_id=request_id(request),
     )
 
