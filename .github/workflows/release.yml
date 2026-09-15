@@ -159,7 +159,8 @@ jobs:
           }
 
           $version = & $exe --version
-          $expected = "translators-api $($env:EXE_NAME -replace '^translators-api-v([0-9.]+(?:\.dev[0-9]+)?)-windows-x64\.exe$','$1')"
+          $versionNumber = $env:EXE_NAME -replace '^translators-api-v(.+)-windows-x64\.exe$','$1'
+          $expected = "translators-api $versionNumber"
           if ($version -ne $expected) {
             throw "Unexpected version output: $version (expected $expected)"
           }
@@ -205,9 +206,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
-          path: |
-            build/windows/${{ env.EXE_NAME }}
-            build/windows/SHA256SUMS-windows-x64.txt
+          path: build/windows/*
           if-no-files-found: error
 
   release:
