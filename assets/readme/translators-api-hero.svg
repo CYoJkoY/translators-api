@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+<title id="title">translators-api</title>
+<desc id="desc">A translation request flowing through a unified API gateway into multiple translation services.</desc>
+<rect width="1600" height="520" fill="#f7f5ef"/>
+<rect x="72" y="68" width="1456" height="384" rx="28" fill="#fffdf8" stroke="#202020" stroke-width="4"/>
+<text x="132" y="150" font-family="Inter,Segoe UI,sans-serif" font-size="64" font-weight="700" fill="#202020">translators-api</text>
+<text x="136" y="198" font-family="Inter,Segoe UI,sans-serif" font-size="24" fill="#5f5b55">One HTTP boundary for many translation backends.</text>
+<g transform="translate(132 250)">
+<rect width="250" height="128" rx="18" fill="#202020"/>
+<text x="125" y="56" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="20" font-weight="700" fill="#fffdf8">CLIENT</text>
+<text x="125" y="88" text-anchor="middle" font-family="ui-monospace,monospace" font-size="18" fill="#d8d2c7">HTTP / JSON</text>
+</g>
+<path d="M404 314h112" fill="none" stroke="#202020" stroke-width="5" stroke-linecap="round"/>
+<path d="m500 296 22 18-22 18" fill="none" stroke="#202020" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="translate(540 226)">
+<rect width="380" height="176" rx="22" fill="#e7dfd0" stroke="#202020" stroke-width="4"/>
+<text x="190" y="54" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="24" font-weight="700" fill="#202020">UNIFIED API</text>
+<text x="190" y="92" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" fill="#47433d">validation · routing · fallback</text>
+<text x="190" y="124" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" fill="#47433d">auth · limits · caching</text>
+</g>
+<path d="M942 274h100M942 326h100M942 378h100" fill="none" stroke="#202020" stroke-width="5" stroke-linecap="round"/>
+<path d="m1028 256 22 18-22 18M1028 308l22 18-22 18M1028 360l22 18-22 18" fill="none" stroke="#202020" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<g transform="translate(1080 238)">
+<rect width="160" height="62" rx="14" fill="#d7e3d6" stroke="#202020" stroke-width="3"/>
+<text x="80" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#202020">Google</text>
+</g>
+<g transform="translate(1260 238)">
+<rect width="160" height="62" rx="14" fill="#d9e1ec" stroke="#202020" stroke-width="3"/>
+<text x="80" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#202020">Bing</text>
+</g>
+<g transform="translate(1080 322)">
+<rect width="160" height="62" rx="14" fill="#ead7d4" stroke="#202020" stroke-width="3"/>
+<text x="80" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#202020">DeepL</text>
+</g>
+<g transform="translate(1260 322)">
+<rect width="160" height="62" rx="14" fill="#ece2cf" stroke="#202020" stroke-width="3"/>
+<text x="80" y="39" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="18" font-weight="700" fill="#202020">More backends</text>
+</g>
+</svg>
