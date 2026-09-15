@@ -342,7 +342,7 @@ docker run --rm \
 
 ### Windows standalone bundle
 
-GitHub Releases may provide a Windows x64 standalone ZIP containing the executable and its required runtime files:
+GitHub Releases provide an optional Windows x64 standalone ZIP containing the executable and its required runtime files:
 
 ```text
 translators-api-v0.1.0-windows-x64.zip
@@ -361,7 +361,7 @@ Inspect available options:
 .\translators-api.exe --version
 ```
 
-Release assets also include `SHA256SUMS-windows-x64.txt` for integrity verification. Stable tags publish normal GitHub Releases; development tags such as `v0.1.0.dev1` are published as prereleases.
+The ZIP is produced with PyInstaller in `--onedir` mode, so all runtime files remain alongside the executable. Stable tags publish normal GitHub Releases; development tags such as `v0.1.0.dev1` are published as prereleases.
 
 ### Production topology
 
@@ -404,20 +404,19 @@ Build the Windows standalone bundle locally on Windows:
 
 ```powershell
 python -m pip install -e ".[build]"
-python -m nuitka --mode=standalone `
-  --assume-yes-for-downloads `
-  --enable-plugin=anti-bloat `
-  --jobs=4 `
-  --lto=no `
-  --output-dir=build/windows `
-  --output-filename=translators-api.exe `
-  --include-package-data=translators `
-  --include-package-data=exejs `
-  --nofollow-import-to=torch,transformers,tensorflow,IPython,selenium,PyQt5,PyQt6,PyQtWebEngine,PySide2,PySide6,playwright,tkinter,pywebview `
+python -m PyInstaller `
+  --noconfirm `
+  --clean `
+  --onedir `
+  --name translators-api `
+  --distpath build/windows `
+  --workpath build/pyinstaller `
+  --specpath build/pyinstaller `
+  --paths src `
   src/translators_api/cli.py
 ```
 
-GitHub Actions runs the test suite on Python 3.10–3.13, builds and smoke-tests the optional Windows standalone bundle, and builds the Docker image independently after the test matrix succeeds. Tag-triggered Release automation additionally publishes the Python distributions, Docker image, Windows standalone ZIP, and checksum asset.
+GitHub Actions runs the test suite on Python 3.10–3.13 and builds the Docker image for pull requests and pushes to `main`. Tag-triggered Release automation additionally publishes the Python distributions, Docker image, optional Windows standalone ZIP, and checksum asset.
 
 The repository intentionally keeps the provider adapter small. Provider-specific parameters should only be added to the HTTP contract when they provide stable cross-provider value; otherwise they belong in the upstream `Translators` layer.
 
