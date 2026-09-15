@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import translators as ts
 
 from .config import Settings
-from .resilience import CircuitBreaker, ProviderFailure, classify_failure
+from .resilience import CircuitBreaker, classify_failure
 
 
 class TranslationServiceError(RuntimeError):
@@ -94,15 +94,14 @@ class TranslationService:
             return [requested], False
 
         candidates = list(dict.fromkeys(self.settings.fallback_translators))
-        candidates = [name for name in candidates if name in self._available and self._circuits.allow(name)]
+        candidates = [
+            name
+            for name in candidates
+            if name in self._available and self._circuits.allow(name)
+        ]
         if not candidates:
             raise TranslationServiceError("no configured fallback translators are available")
         return candidates, True
-
-    @staticmethod
-    def _handle_failure(name: str, exc: BaseException, failure: ProviderFailure) -> None:
-        if failure.retryable:
-            return
 
     async def translate(
         self, text: str, source: str, target: str, translator: str | None
