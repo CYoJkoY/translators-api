@@ -24,6 +24,7 @@ test = [
 ]
 build = [
     "Nuitka>=4,<5",
+    "ordered-set>=4,<5",
 ]
 
 [project.scripts]
