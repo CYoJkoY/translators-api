@@ -105,7 +105,7 @@ class TranslationService:
         candidates, auto = self._candidates(translator)
         errors: list[str] = []
         attempted = 0
-        for index, name in enumerate(candidates):
+        for name in candidates:
             if not self._circuits.allow(name):
                 continue
             attempted += 1
