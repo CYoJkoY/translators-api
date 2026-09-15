@@ -4,9 +4,9 @@ import argparse
 
 import uvicorn
 
-from . import __version__
-from .config import get_settings
-from .main import app
+from translators_api import __version__
+from translators_api.config import get_settings
+from translators_api.main import app
 
 
 def build_parser() -> argparse.ArgumentParser:
