@@ -306,6 +306,7 @@ async def translators() -> dict[str, object]:
         "default": settings.default_translator,
         "fallback": settings.fallback_translators,
         "state": service.provider_states(),
+        "capabilities": service.provider_capabilities(),
     }
 
 
