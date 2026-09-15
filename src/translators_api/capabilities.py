@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Iterable
 
 
-class CapabilitySupport(StrEnum):
+class CapabilitySupport(str, Enum):
     """Gateway knowledge level for a provider capability."""
 
     SUPPORTED = "supported"
