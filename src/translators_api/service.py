@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import translators as ts
 
 from .config import Settings
+from .resilience import CircuitBreaker, ProviderFailure, classify_failure
 
 
 class TranslationServiceError(RuntimeError):
@@ -77,6 +78,13 @@ class TranslationService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._available = set(available_translators())
+        self._circuits = CircuitBreaker(
+            failure_threshold=settings.circuit_failure_threshold,
+            recovery_seconds=settings.circuit_recovery_seconds,
+        )
+
+    def provider_states(self) -> dict[str, str]:
+        return self._circuits.snapshot(sorted(self._available))
 
     def _candidates(self, translator: str | None) -> tuple[list[str], bool]:
         requested = translator or self.settings.default_translator
@@ -86,10 +94,15 @@ class TranslationService:
             return [requested], False
 
         candidates = list(dict.fromkeys(self.settings.fallback_translators))
-        candidates = [name for name in candidates if name in self._available]
+        candidates = [name for name in candidates if name in self._available and self._circuits.allow(name)]
         if not candidates:
             raise TranslationServiceError("no configured fallback translators are available")
         return candidates, True
+
+    @staticmethod
+    def _handle_failure(name: str, exc: BaseException, failure: ProviderFailure) -> None:
+        if failure.retryable:
+            return
 
     async def translate(
         self, text: str, source: str, target: str, translator: str | None
@@ -108,9 +121,15 @@ class TranslationService:
                 )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
+                self._circuits.record_success(name)
                 return TranslationResult(result, name, auto and index > 0)
             except Exception as exc:
-                errors.append(f"{name}: {type(exc).__name__}")
+                failure = classify_failure(exc)
+                if failure.retryable:
+                    self._circuits.record_failure(name)
+                    errors.append(f"{name}: {failure.kind}")
+                    continue
+                raise TranslationServiceError(failure.detail) from exc
 
         raise TranslationServiceError(
             "all translators failed" + (f" ({'; '.join(errors)})" if errors else "")
@@ -133,9 +152,15 @@ class TranslationService:
                 )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
+                self._circuits.record_success(name)
                 return TranslationResult(result, name, auto and index > 0)
             except Exception as exc:
-                errors.append(f"{name}: {type(exc).__name__}")
+                failure = classify_failure(exc)
+                if failure.retryable:
+                    self._circuits.record_failure(name)
+                    errors.append(f"{name}: {failure.kind}")
+                    continue
+                raise TranslationServiceError(failure.detail) from exc
 
         raise TranslationServiceError(
             "all translators failed" + (f" ({'; '.join(errors)})" if errors else "")
