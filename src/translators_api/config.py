@@ -9,15 +9,15 @@ from pydantic import BaseModel, Field
 class Settings(BaseModel):
     api_key: str | None = Field(default=None)
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = "info"
-    max_text_length: int = 20_000
-    max_batch_items: int = 50
-    max_batch_total_length: int = 100_000
-    max_batch_concurrency: int = 5
-    upstream_timeout: float = 30.0
-    rate_limit_requests: int = 120
-    rate_limit_window_seconds: int = 60
+    max_text_length: int = Field(default=20_000, gt=0)
+    max_batch_items: int = Field(default=50, gt=0)
+    max_batch_total_length: int = Field(default=100_000, gt=0)
+    max_batch_concurrency: int = Field(default=5, gt=0)
+    upstream_timeout: float = Field(default=30.0, gt=0)
+    rate_limit_requests: int = Field(default=120, gt=0)
+    rate_limit_window_seconds: int = Field(default=60, gt=0)
     fallback_translators: list[str] = Field(
         default_factory=lambda: ["bing", "google", "deepl", "baidu"]
     )
