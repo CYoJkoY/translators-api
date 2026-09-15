@@ -91,6 +91,8 @@ class TranslationService:
         if requested.lower() not in {"auto", "detect", "all"}:
             if requested not in self._available:
                 raise UnknownTranslatorError(f"unknown translator: {requested}")
+            if not self._circuits.allow(requested):
+                raise TranslationServiceError(f"translator circuit is open: {requested}")
             return [requested], False
 
         candidates = list(dict.fromkeys(self.settings.fallback_translators))
