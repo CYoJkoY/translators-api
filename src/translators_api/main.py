@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import secrets
+import threading
 import time
 import uuid
 from collections import defaultdict, deque
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -43,6 +45,85 @@ app = FastAPI(
 
 _rate_buckets: dict[str, deque[float]] = defaultdict(deque)
 _rate_lock = asyncio.Lock()
+_metrics_lock = threading.Lock()
+_metrics = {
+    "http_requests_total": 0,
+    "http_request_failures_total": 0,
+    "http_request_duration_seconds_sum": 0.0,
+    "http_request_duration_seconds_count": 0,
+    "translations_total": 0,
+    "translation_failures_total": 0,
+    "translation_fallback_total": 0,
+    "rate_limit_rejections_total": 0,
+    "readiness_failures_total": 0,
+}
+_translations_by_translator: dict[str, int] = defaultdict(int)
+
+
+def _metric_inc(name: str, value: int = 1) -> None:
+    with _metrics_lock:
+        _metrics[name] += value
+
+
+def _metric_observe_duration(value: float) -> None:
+    with _metrics_lock:
+        _metrics["http_request_duration_seconds_sum"] += value
+        _metrics["http_request_duration_seconds_count"] += 1
+
+
+def _metric_translation(translator: str, fallback: bool = False) -> None:
+    with _metrics_lock:
+        _metrics["translations_total"] += 1
+        _translations_by_translator[translator] += 1
+        if fallback:
+            _metrics["translation_fallback_total"] += 1
+
+
+def _escape_metric_label(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+def _render_metrics() -> str:
+    with _metrics_lock:
+        snapshot = dict(_metrics)
+        by_translator = dict(_translations_by_translator)
+
+    lines = [
+        "# HELP translators_api_http_requests_total Total HTTP requests handled.",
+        "# TYPE translators_api_http_requests_total counter",
+        f"translators_api_http_requests_total {snapshot['http_requests_total']}",
+        "# HELP translators_api_http_request_failures_total Total HTTP requests ending in a 4xx or 5xx response.",
+        "# TYPE translators_api_http_request_failures_total counter",
+        f"translators_api_http_request_failures_total {snapshot['http_request_failures_total']}",
+        "# HELP translators_api_http_request_duration_seconds_sum Sum of HTTP request durations in seconds.",
+        "# TYPE translators_api_http_request_duration_seconds_sum counter",
+        f"translators_api_http_request_duration_seconds_sum {snapshot['http_request_duration_seconds_sum']}",
+        "# HELP translators_api_http_request_duration_seconds_count Number of observed HTTP request durations.",
+        "# TYPE translators_api_http_request_duration_seconds_count counter",
+        f"translators_api_http_request_duration_seconds_count {snapshot['http_request_duration_seconds_count']}",
+        "# HELP translators_api_translations_total Successful translation operations.",
+        "# TYPE translators_api_translations_total counter",
+        f"translators_api_translations_total {snapshot['translations_total']}",
+        "# HELP translators_api_translation_failures_total Translation operations that failed after routing to the service layer.",
+        "# TYPE translators_api_translation_failures_total counter",
+        f"translators_api_translation_failures_total {snapshot['translation_failures_total']}",
+        "# HELP translators_api_translation_fallback_total Successful translations that required a fallback translator.",
+        "# TYPE translators_api_translation_fallback_total counter",
+        f"translators_api_translation_fallback_total {snapshot['translation_fallback_total']}",
+        "# HELP translators_api_rate_limit_rejections_total Total rate-limit rejections.",
+        "# TYPE translators_api_rate_limit_rejections_total counter",
+        f"translators_api_rate_limit_rejections_total {snapshot['rate_limit_rejections_total']}",
+        "# HELP translators_api_readiness_failures_total Total readiness check failures.",
+        "# TYPE translators_api_readiness_failures_total counter",
+        f"translators_api_readiness_failures_total {snapshot['readiness_failures_total']}",
+        "# HELP translators_api_translations_by_translator_total Successful translations by upstream translator.",
+        "# TYPE translators_api_translations_by_translator_total counter",
+    ]
+    lines.extend(
+        f'translators_api_translations_by_translator_total{{translator="{_escape_metric_label(name)}"}} {count}'
+        for name, count in sorted(by_translator.items())
+    )
+    return "\n".join(lines) + "\n"
 
 
 def request_id(request: Request) -> str:
@@ -56,7 +137,15 @@ def request_id(request: Request) -> str:
 @app.middleware("http")
 async def request_context(request: Request, call_next):
     request.state.request_id = f"req_{uuid.uuid4().hex}"
-    response = await call_next(request)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    finally:
+        _metric_inc("http_requests_total")
+        _metric_observe_duration(time.perf_counter() - started)
+
+    if response.status_code >= 400:
+        _metric_inc("http_request_failures_total")
     response.headers["X-Request-ID"] = request.state.request_id
     return response
 
@@ -78,7 +167,9 @@ async def authenticate(
 async def enforce_rate_limit(request: Request) -> None:
     now = time.monotonic()
     client = request.client.host if request.client else "unknown"
-    key = f"{client}:{request.headers.get('authorization', '')[:24]}"
+    authorization = request.headers.get("authorization", "").encode("utf-8")
+    token_fingerprint = hashlib.sha256(authorization).hexdigest()[:16]
+    key = f"{client}:{token_fingerprint}"
     async with _rate_lock:
         bucket = _rate_buckets[key]
         cutoff = now - settings.rate_limit_window_seconds
@@ -86,6 +177,7 @@ async def enforce_rate_limit(request: Request) -> None:
             bucket.popleft()
         if len(bucket) >= settings.rate_limit_requests:
             retry_after = max(1, int(bucket[0] + settings.rate_limit_window_seconds - now))
+            _metric_inc("rate_limit_rejections_total")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="rate limit exceeded",
@@ -123,11 +215,12 @@ def ensure_batch(request: BatchTranslateRequest) -> None:
 
 @app.exception_handler(TranslationServiceError)
 async def translation_error_handler(request: Request, exc: TranslationServiceError):
+    _metric_inc("translation_failures_total")
     rid = request_id(request)
     return JSONResponse(
         status_code=status.HTTP_502_BAD_GATEWAY,
         content=ErrorResponse(
-            error={"code": "translation_failed", "message": str(exc), "request_id": rid}
+            error={"code": "translation_failed", "message": "all configured translators failed", "request_id": rid}
         ).model_dump(),
         headers={"X-Request-ID": rid},
     )
@@ -192,10 +285,17 @@ async def ready() -> dict[str, str]:
     try:
         names = available_translators()
     except Exception as exc:
+        _metric_inc("readiness_failures_total")
         raise HTTPException(status_code=503, detail=f"translator engine unavailable: {type(exc).__name__}") from exc
     if not names:
+        _metric_inc("readiness_failures_total")
         raise HTTPException(status_code=503, detail="no translators available")
     return {"status": "ready", "translators": str(len(names))}
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    return Response(content=_render_metrics(), media_type="text/plain; version=0.0.4")
 
 
 @app.get("/v1/translators", dependencies=[Depends(protected)])
@@ -219,6 +319,7 @@ async def languages(translator: str = settings.default_translator) -> dict[str, 
 async def translate(request: Request, payload: TranslateRequest) -> TranslateResponse:
     ensure_length(payload.text, settings.max_text_length, "text")
     result = await service.translate(payload.text, payload.source, payload.target, payload.translator)
+    _metric_translation(result.translator, result.fallback)
     return TranslateResponse(
         text=payload.text,
         translation=result.translation,
@@ -240,6 +341,8 @@ async def translate_batch(request: Request, payload: BatchTranslateRequest) -> B
             return await service.translate(text, payload.source, payload.target, payload.translator)
 
     results = await asyncio.gather(*(translate_one(text) for text in payload.texts))
+    for result in results:
+        _metric_translation(result.translator, result.fallback)
     translators_used = {result.translator for result in results}
     translator_name = next(iter(translators_used)) if len(translators_used) == 1 else "mixed"
     return BatchTranslateResponse(
@@ -259,6 +362,7 @@ async def translate_batch(request: Request, payload: BatchTranslateRequest) -> B
 async def translate_html(request: Request, payload: HtmlTranslateRequest) -> HtmlTranslateResponse:
     ensure_length(payload.html, settings.max_text_length, "html")
     result = await service.translate_html(payload.html, payload.source, payload.target, payload.translator)
+    _metric_translation(result.translator, result.fallback)
     return HtmlTranslateResponse(
         html=payload.html,
         translation=result.translation,

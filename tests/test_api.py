@@ -2,8 +2,10 @@ import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from translators_api import main
+from translators_api.config import Settings
 from translators_api.service import TranslationResult, TranslationService
 
 
@@ -12,6 +14,7 @@ def client():
     main.settings.api_key = None
     main.settings.rate_limit_requests = 1_000
     main.settings.rate_limit_window_seconds = 60
+    main._rate_buckets.clear()
     return TestClient(main.app)
 
 
@@ -36,6 +39,20 @@ def test_translate(client, monkeypatch):
     assert body["translation"] == "你好，世界"
     assert body["translator"] == "bing"
     assert body["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_translate_records_metrics(client, monkeypatch):
+    async def fake_translate(text, source, target, translator):
+        return TranslationResult("你好", "bing", True)
+
+    monkeypatch.setattr(main.service, "translate", fake_translate)
+    response = client.post("/v1/translate", json={"text": "hello"})
+    assert response.status_code == 200
+
+    metrics = client.get("/metrics").text
+    assert "translators_api_translations_total" in metrics
+    assert "translators_api_translation_fallback_total" in metrics
+    assert 'translator="bing"' in metrics
 
 
 def test_batch_translation(client, monkeypatch):
@@ -84,6 +101,27 @@ def test_validation_error(client):
     assert response.json()["error"]["code"] == "validation_error"
 
 
+def test_payload_limit(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "max_text_length", 4)
+    response = client.post("/v1/translate", json={"text": "hello"})
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "payload_too_large"
+
+
+def test_batch_item_limit(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "max_batch_items", 2)
+    response = client.post("/v1/translate/batch", json={"texts": ["a", "b", "c"]})
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "payload_too_large"
+
+
+def test_batch_total_length_limit(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "max_batch_total_length", 3)
+    response = client.post("/v1/translate/batch", json={"texts": ["ab", "cd"]})
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "payload_too_large"
+
+
 def test_authentication(client):
     main.settings.api_key = "secret"
     response = client.get("/v1/translators")
@@ -95,6 +133,39 @@ def test_authentication(client):
     )
     assert response.status_code == 200
     main.settings.api_key = None
+
+
+def test_rate_limit(client, monkeypatch):
+    main.settings.rate_limit_requests = 1
+    main.settings.rate_limit_window_seconds = 60
+    main._rate_buckets.clear()
+
+    assert client.get("/v1/translators").status_code == 200
+    response = client.get("/v1/translators")
+    assert response.status_code == 429
+    assert response.headers["Retry-After"].isdigit()
+    assert response.json()["error"]["code"] == "rate_limited"
+
+    metrics = client.get("/metrics").text
+    assert "translators_api_rate_limit_rejections_total" in metrics
+
+
+def test_readiness_failure(client, monkeypatch):
+    monkeypatch.setattr(main, "available_translators", lambda: [])
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "request_error"
+
+
+def test_service_error_contract(client, monkeypatch):
+    async def failed_translate(text, source, target, translator):
+        raise main.TranslationServiceError("provider timeout")
+
+    monkeypatch.setattr(main.service, "translate", failed_translate)
+    response = client.post("/v1/translate", json={"text": "hello"})
+    assert response.status_code == 502
+    assert response.json()["error"]["message"] == "all configured translators failed"
+    assert response.json()["error"]["request_id"] == response.headers["X-Request-ID"]
 
 
 def test_service_fallback(monkeypatch):
@@ -115,3 +186,10 @@ def test_service_fallback(monkeypatch):
     result = asyncio.run(service.translate("hello", "en", "zh-CN", "auto"))
     assert result == TranslationResult("translated", "second", True)
     assert calls == [("first", 1.5), ("second", 1.5)]
+
+
+def test_invalid_runtime_settings_are_rejected():
+    with pytest.raises(ValidationError):
+        Settings(rate_limit_requests=0)
+    with pytest.raises(ValidationError):
+        Settings(port=70_000)
