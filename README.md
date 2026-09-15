@@ -30,7 +30,7 @@
 
 `translators-api` is intended to turn the Python [Translators](https://github.com/UlionTse/translators) library into a language-agnostic HTTP service.
 
-The upstream project already provides a common Python interface for many translation services, including text and HTML translation. `translators-api` adds a stable service boundary so browser extensions, desktop applications, web applications, scripts, and other runtimes can consume the same translation backend over HTTP. fileciteturn2file0
+The upstream project provides a common Python interface for many translation services, including text and HTML translation. `translators-api` adds a stable service boundary so browser extensions, desktop applications, web applications, scripts, and other runtimes can consume the same translation backend over HTTP.
 
 ### Current status
 
@@ -106,7 +106,7 @@ result = ts.translate_text(
 print(result)
 ```
 
-The upstream package also supports HTML translation and asynchronous invocation. Consult the upstream documentation for provider-specific parameters and the current supported-service list. fileciteturn2file0
+The upstream package also supports HTML translation and asynchronous invocation. Consult the upstream documentation for provider-specific parameters and the current supported-service list.
 
 ---
 
@@ -316,11 +316,11 @@ A container-first deployment model is planned once the initial service implement
 <a name="readme-compatibility"></a>
 ## <img src="assets/readme/icons/compatibility.svg" width="24" height="24" alt=""> Compatibility
 
-The upstream `translators` package currently declares Python **3.8+** support and exposes synchronous and asynchronous translation interfaces. Its package metadata also lists multiple provider-specific transport and request options. fileciteturn3file0L2-L2
+The upstream `translators` package currently declares Python **3.8+** support and exposes synchronous and asynchronous translation interfaces. Its package metadata also lists multiple provider-specific transport and request options.
 
 The gateway itself is intended to support clients that can issue ordinary HTTP requests; clients do not need to be written in Python.
 
-Provider availability is expected to vary over time. The upstream project currently lists a broad set of services, but individual services may change behavior or availability independently. fileciteturn2file0
+Provider availability is expected to vary over time. The upstream project currently lists a broad set of services, but individual services may change behavior or availability independently.
 
 ---
 
@@ -403,7 +403,7 @@ Useful references:
 - [PyPI package](https://pypi.org/project/translators/)
 - [Upstream README](https://github.com/UlionTse/translators#readme)
 
-The upstream repository currently describes `Translators` as a Python library providing multiple free translation services through a common interface and ships a `fanyi` command-line entry point. fileciteturn2file0L1-L2
+The upstream repository describes `Translators` as a Python library providing multiple translation services through a common interface and ships a `fanyi` command-line entry point.
 
 ---
 
@@ -414,7 +414,7 @@ This project is licensed under the **GNU General Public License v3.0**.
 
 See [`LICENSE`](LICENSE) for the full text.
 
-The upstream `Translators` project is also licensed under GPL-3.0, so downstream distribution and modifications should be handled with the applicable GPL obligations in mind. fileciteturn1file0L2-L2
+The upstream `Translators` project is also licensed under GPL-3.0, so downstream distribution and modifications should be handled with the applicable GPL obligations in mind.
 
 <div align="center">
 
