@@ -71,8 +71,7 @@ class CircuitBreaker:
             state = self._circuits.setdefault(provider, _Circuit())
             state.failures += 1
             state.probe_in_flight = False
-            if state.failures >= self.failure_threshold:
-                state.opened_at = current
+            state.opened_at = current if state.failures >= self.failure_threshold else state.opened_at
 
     def state(self, provider: str, now: float | None = None) -> str:
         current = time.monotonic() if now is None else now
