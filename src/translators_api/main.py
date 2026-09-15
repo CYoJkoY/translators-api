@@ -7,6 +7,7 @@ import uuid
 from collections import defaultdict, deque
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .config import get_settings
@@ -29,7 +30,7 @@ from .service import (
 )
 
 settings = get_settings()
-service = TranslatorService(settings)
+service = TranslationService(settings)
 
 app = FastAPI(
     title="translators-api",
@@ -162,6 +163,22 @@ async def http_error_handler(request: Request, exc: HTTPException):
             error={"code": code, "message": str(exc.detail), "request_id": rid}
         ).model_dump(),
         headers=headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    rid = request_id(request)
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=ErrorResponse(
+            error={
+                "code": "validation_error",
+                "message": "request validation failed",
+                "request_id": rid,
+            }
+        ).model_dump(),
+        headers={"X-Request-ID": rid},
     )
 
 

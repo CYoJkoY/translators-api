@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any
 
 import translators as ts
 
@@ -99,8 +98,6 @@ class TranslatorService:
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
                 return TranslationResult(result, name, auto and index > 0)
-            except UnknownTranslatorError:
-                raise
             except Exception as exc:
                 errors.append(f"{name}: {type(exc).__name__}")
 
@@ -119,8 +116,6 @@ class TranslatorService:
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
                 return TranslationResult(result, name, auto and index > 0)
-            except UnknownTranslatorError:
-                raise
             except Exception as exc:
                 errors.append(f"{name}: {type(exc).__name__}")
 

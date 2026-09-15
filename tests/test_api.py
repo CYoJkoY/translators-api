@@ -1,5 +1,3 @@
-import asyncio
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,7 +6,7 @@ from translators_api.service import TranslationResult
 
 
 @pytest.fixture()
-def client(monkeypatch):
+def client():
     main.settings.api_key = None
     main.settings.rate_limit_requests = 1_000
     main.settings.rate_limit_window_seconds = 60
@@ -69,16 +67,22 @@ def test_html_translation(client, monkeypatch):
 
 
 def test_unknown_translator(client, monkeypatch):
-    monkeypatch.setattr(main, "available_translators", lambda: ["bing"])
+    monkeypatch.setattr(main.service, "_available", {"bing"})
     response = client.post(
         "/v1/translate",
         json={"text": "Hello", "translator": "unknown"},
     )
-    assert response.status_code == 502
-    assert response.json()["error"]["code"] == "translation_failed"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "unknown_translator"
 
 
-def test_authentication(client, monkeypatch):
+def test_validation_error(client):
+    response = client.post("/v1/translate", json={"text": ""})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+
+def test_authentication(client):
     main.settings.api_key = "secret"
     response = client.get("/v1/translators")
     assert response.status_code == 401
