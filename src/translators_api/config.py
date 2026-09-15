@@ -15,6 +15,7 @@ class Settings(BaseModel):
     max_batch_items: int = Field(default=50, gt=0)
     max_batch_total_length: int = Field(default=100_000, gt=0)
     max_batch_concurrency: int = Field(default=5, gt=0)
+    batch_timeout: float = Field(default=120.0, gt=0)
     upstream_timeout: float = Field(default=30.0, gt=0)
     rate_limit_requests: int = Field(default=120, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
@@ -48,6 +49,7 @@ def get_settings() -> Settings:
         max_batch_concurrency=int(
             os.getenv("MAX_BATCH_CONCURRENCY", str(defaults.max_batch_concurrency))
         ),
+        batch_timeout=float(os.getenv("BATCH_TIMEOUT", str(defaults.batch_timeout))),
         upstream_timeout=float(os.getenv("UPSTREAM_TIMEOUT", str(defaults.upstream_timeout))),
         rate_limit_requests=int(
             os.getenv("RATE_LIMIT_REQUESTS", str(defaults.rate_limit_requests))
