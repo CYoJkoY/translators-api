@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from translators_api.resilience import CircuitBreaker, FailureKind, classify_failure
+from translators_api.service import TranslationService, TranslationServiceError
+from translators_api.config import Settings
 
 
 def test_classify_timeout_as_retryable():
@@ -53,6 +55,33 @@ def test_half_open_probe_failure_reopens_circuit():
     breaker.record_failure("bing", now=11)
     assert breaker.state("bing", now=11) == "open"
     assert breaker.allow("bing", now=12) is False
+
+
+def test_explicit_translator_respects_open_circuit():
+    settings = Settings(circuit_failure_threshold=1)
+    service = TranslationService(settings)
+    service._available = {"bing"}
+    service._circuits.record_failure("bing", now=0)
+
+    # An explicit provider is rejected instead of bypassing the circuit.
+    assert service._circuits.allow("bing", now=1) is False
+
+
+def test_auto_mode_does_not_reserve_multiple_half_open_probes():
+    settings = Settings(
+        fallback_translators=["first", "second"],
+        circuit_failure_threshold=1,
+        circuit_recovery_seconds=10,
+    )
+    service = TranslationService(settings)
+    service._available = {"first", "second"}
+    service._circuits.record_failure("first", now=0)
+    service._circuits.record_failure("second", now=0)
+
+    # The first eligible provider is probed; the next provider remains available.
+    assert service._circuits.allow("first", now=11) is True
+    assert service._circuits.allow("first", now=11) is False
+    assert service._circuits.allow("second", now=11) is True
 
 
 def test_invalid_circuit_configuration_is_rejected():
