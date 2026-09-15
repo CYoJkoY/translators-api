@@ -22,6 +22,12 @@ test = [
     "pytest>=8,<9",
     "httpx>=0.28,<1",
 ]
+build = [
+    "Nuitka>=4,<5",
+]
+
+[project.scripts]
+translators-api = "translators_api.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
