@@ -73,7 +73,7 @@ def _translate_html_sync(
     return str(result)
 
 
-class TranslatorService:
+class TranslationService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._available = set(available_translators())
