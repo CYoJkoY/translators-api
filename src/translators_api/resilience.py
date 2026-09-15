@@ -80,7 +80,7 @@ class CircuitBreaker:
             state = self._circuits.setdefault(provider, _Circuit())
             if state.opened_at is None:
                 return "closed"
-            if current - state.opened_at >= self.recovery_seconds and not state.probe_in_flight:
+            if current - state.opened_at >= self.recovery_seconds:
                 return "half_open"
             return "open"
 
