@@ -14,6 +14,7 @@ class Settings(BaseModel):
     max_text_length: int = 20_000
     max_batch_items: int = 50
     max_batch_total_length: int = 100_000
+    max_batch_concurrency: int = 5
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
     fallback_translators: list[str] = Field(
@@ -40,6 +41,9 @@ def get_settings() -> Settings:
         max_batch_items=int(os.getenv("MAX_BATCH_ITEMS", str(defaults.max_batch_items))),
         max_batch_total_length=int(
             os.getenv("MAX_BATCH_TOTAL_LENGTH", str(defaults.max_batch_total_length))
+        ),
+        max_batch_concurrency=int(
+            os.getenv("MAX_BATCH_CONCURRENCY", str(defaults.max_batch_concurrency))
         ),
         rate_limit_requests=int(
             os.getenv("RATE_LIMIT_REQUESTS", str(defaults.rate_limit_requests))

@@ -233,12 +233,13 @@ async def translate(request: Request, payload: TranslateRequest) -> TranslateRes
 @app.post("/v1/translate/batch", response_model=BatchTranslateResponse, dependencies=[Depends(protected)])
 async def translate_batch(request: Request, payload: BatchTranslateRequest) -> BatchTranslateResponse:
     ensure_batch(payload)
-    results = await asyncio.gather(
-        *(
-            service.translate(text, payload.source, payload.target, payload.translator)
-            for text in payload.texts
-        )
-    )
+    semaphore = asyncio.Semaphore(settings.max_batch_concurrency)
+
+    async def translate_one(text: str):
+        async with semaphore:
+            return await service.translate(text, payload.source, payload.target, payload.translator)
+
+    results = await asyncio.gather(*(translate_one(text) for text in payload.texts))
     translators_used = {result.translator for result in results}
     translator_name = next(iter(translators_used)) if len(translators_used) == 1 else "mixed"
     return BatchTranslateResponse(
