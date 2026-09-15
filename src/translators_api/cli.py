@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-import uvicorn
-
 from translators_api import __version__
 from translators_api.config import get_settings
-from translators_api.main import app
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,6 +30,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    from translators_api.main import app
+    import uvicorn
+
     uvicorn.run(
         app,
         host=args.host,
