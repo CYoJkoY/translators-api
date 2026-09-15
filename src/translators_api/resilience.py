@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 import threading
 import time
 
 
-class FailureKind(StrEnum):
+class FailureKind(str, Enum):
     TIMEOUT = "timeout"
     REQUEST = "request"
     PROVIDER = "provider"
