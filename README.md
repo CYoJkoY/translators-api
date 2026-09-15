@@ -58,7 +58,7 @@ Client
 
 ### Current status
 
-The project now contains a runnable FastAPI service, test suite, configuration model, Docker image definition, and GitHub Actions CI. Advanced production features such as distributed rate limiting and shared caching remain future work.
+The project contains a runnable FastAPI service, test suite, configuration model, Docker image definition, optional Windows standalone bundle build, and GitHub Actions CI. Advanced production features such as distributed rate limiting and shared caching remain future work.
 
 ### Design goals
 
@@ -66,6 +66,7 @@ The project now contains a runnable FastAPI service, test suite, configuration m
 - **Thin integration layer** that does not duplicate provider implementations.
 - **Explicit failure boundaries** so provider errors do not leak raw exceptions to clients.
 - **Self-hosted operation** with configuration supplied through environment variables.
+- **Multiple delivery modes** through a Python package, Docker image, and optional Windows standalone bundle.
 - **Incremental hardening** through tests, CI, and deployment checks.
 
 ---
@@ -95,6 +96,13 @@ Start the server:
 
 ```bash
 uvicorn translators_api.main:app --host 0.0.0.0 --port 8000
+```
+
+Or use the packaged CLI:
+
+```bash
+python -m pip install -e "."
+translators-api --host 0.0.0.0 --port 8000
 ```
 
 Then open:
@@ -248,6 +256,8 @@ Copy `.env.example` as a reference. The application reads configuration from env
 | `MAX_TEXT_LENGTH` | `20000` | Maximum text/HTML size in characters |
 | `MAX_BATCH_ITEMS` | `50` | Maximum batch item count |
 | `MAX_BATCH_TOTAL_LENGTH` | `100000` | Maximum combined batch size |
+| `MAX_BATCH_CONCURRENCY` | `5` | Maximum concurrent batch translations |
+| `UPSTREAM_TIMEOUT` | `30` | Upstream translation timeout in seconds |
 | `RATE_LIMIT_REQUESTS` | `120` | Requests allowed per client window |
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window |
 | `DEFAULT_TRANSLATOR` | `bing` | Translator used when omitted |
@@ -264,6 +274,7 @@ The code is divided into small boundaries:
 
 ```text
 src/translators_api/
+├── cli.py         service command-line entry point
 ├── config.py      environment-backed settings
 ├── models.py      request / response schemas
 ├── service.py     upstream Translators adapter + fallback
@@ -301,6 +312,17 @@ A successful fallback response reports `fallback: true` when a backend after the
 <a name="readme-deployment"></a>
 ## <img src="assets/readme/icons/deployment.svg" width="24" height="24" alt=""> Deployment
 
+`translators-api` is distributed as a Python package and Docker image, with an optional Windows x64 standalone bundle for users who prefer a Python-free local deployment.
+
+### Python package
+
+Install from a built wheel or source distribution:
+
+```bash
+python -m pip install translators-api
+translators-api --host 0.0.0.0 --port 8000
+```
+
 ### Docker
 
 Build:
@@ -317,6 +339,29 @@ docker run --rm \
   -e TRANSLATORS_API_KEY=change-me \
   translators-api
 ```
+
+### Windows standalone bundle
+
+GitHub Releases provide an optional Windows x64 standalone ZIP containing the executable and its required runtime files:
+
+```text
+translators-api-v0.1.0-windows-x64.zip
+```
+
+No Python installation is required on the target machine. Extract the ZIP and run the bundled executable:
+
+```powershell
+.\translators-api.exe --host 127.0.0.1 --port 8000
+```
+
+Inspect available options:
+
+```powershell
+.\translators-api.exe --help
+.\translators-api.exe --version
+```
+
+The ZIP is produced with PyInstaller in `--onedir` mode, so all runtime files remain alongside the executable. Stable tags publish normal GitHub Releases; development tags such as `v0.1.0.dev1` are published as prereleases.
 
 ### Production topology
 
@@ -336,7 +381,7 @@ Reverse proxy / TLS
       Translators
 ```
 
-For production use, terminate TLS at a reverse proxy, keep secrets outside the image, use health/readiness checks, and use an external rate limiter when running multiple workers or instances.
+For production use, terminate TLS at a reverse proxy, keep secrets outside the image or executable environment, use health/readiness checks, and use an external rate limiter when running multiple workers or instances.
 
 ---
 
@@ -355,7 +400,23 @@ Compile-check the source:
 python -m compileall -q src
 ```
 
-GitHub Actions runs the test suite on Python 3.10–3.13 and builds the Docker image after the test matrix succeeds.
+Build the Windows standalone bundle locally on Windows:
+
+```powershell
+python -m pip install -e ".[build]"
+python -m PyInstaller `
+  --noconfirm `
+  --clean `
+  --onedir `
+  --name translators-api `
+  --distpath build/windows `
+  --workpath build/pyinstaller `
+  --specpath build/pyinstaller `
+  --paths src `
+  src/translators_api/cli.py
+```
+
+GitHub Actions runs the test suite on Python 3.10–3.13 and builds the Docker image for pull requests and pushes to `main`. Tag-triggered Release automation additionally publishes the Python distributions, Docker image, optional Windows standalone ZIP, and checksum asset.
 
 The repository intentionally keeps the provider adapter small. Provider-specific parameters should only be added to the HTTP contract when they provide stable cross-provider value; otherwise they belong in the upstream `Translators` layer.
 
@@ -364,7 +425,9 @@ The repository intentionally keeps the provider adapter small. Provider-specific
 <a name="readme-compatibility"></a>
 ## <img src="assets/readme/icons/compatibility.svg" width="24" height="24" alt=""> Compatibility
 
-The service requires Python 3.10 or newer. The upstream [Translators](https://github.com/UlionTse/translators) package currently declares Python 3.8+ support and exposes synchronous and asynchronous translation entry points.
+The service requires Python 3.10 or newer when run as a Python application. The optional Windows standalone bundle targets Windows x64 and does not require a local Python runtime.
+
+The upstream [Translators](https://github.com/UlionTse/translators) package currently declares Python 3.8+ support and exposes synchronous and asynchronous translation entry points.
 
 The gateway can be consumed by any client capable of HTTP requests. No Python runtime is required on the client side.
 
