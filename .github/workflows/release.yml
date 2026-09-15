@@ -72,9 +72,11 @@ jobs:
           if-no-files-found: error
 
   windows-executable:
-    name: Build Windows portable executable
+    name: Build Windows portable bundle
     needs: validate
     runs-on: windows-latest
+    env:
+      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -85,44 +87,51 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Cache Nuitka build state
+        uses: actions/cache@v4
+        with:
+          path: .nuitka-cache
+          key: nuitka-windows-py3.12-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            nuitka-windows-py3.12-
+
       - name: Install executable build dependencies
         run: python -m pip install ".[build]"
 
-      - name: Derive executable name
+      - name: Derive artifact name
         shell: pwsh
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           $version = $env:TAG_NAME.TrimStart("v")
-          "EXE_NAME=translators-api-v$version-windows-x64.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WINDOWS_BUNDLE=translators-api-v$version-windows-x64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build onefile executable
+      - name: Build standalone bundle
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build/windows | Out-Null
           python -m nuitka `
-            --mode=onefile `
+            --mode=standalone `
             --assume-yes-for-downloads `
             --enable-plugin=anti-bloat `
+            --jobs=4 `
+            --lto=no `
             --output-dir=build/windows `
-            --output-filename=$env:EXE_NAME `
+            --output-filename=translators-api.exe `
             --include-package-data=translators `
             --include-package-data=exejs `
-            --nofollow-import-to=torch,transformers,tensorflow,IPython `
+            --nofollow-import-to=torch,transformers,tensorflow,IPython,selenium,PyQt5,PyQt6,PyQtWebEngine,PySide2,PySide6,playwright,tkinter,pywebview `
             src/translators_api/cli.py
 
-      - name: Smoke-test executable
+      - name: Smoke-test standalone bundle
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD "build/windows/$env:EXE_NAME"
-          $stdout = Join-Path $PWD "build/windows/health.stdout.log"
-          $stderr = Join-Path $PWD "build/windows/health.stderr.log"
-
-          if (-not (Test-Path $exe)) {
-            throw "Nuitka did not produce $env:EXE_NAME"
+          $exe = Get-ChildItem -Path build/windows -Recurse -Filter "translators-api.exe" | Select-Object -First 1
+          if (-not $exe) {
+            throw "Nuitka did not produce the expected standalone executable."
           }
 
-          $versionOutput = (& $exe --version 2>&1 | Out-String).Trim()
+          $versionOutput = (& $exe.FullName --version 2>&1 | Out-String).Trim()
           $versionLine = ($versionOutput -split "`r?`n") |
             Where-Object { $_ -match 'translators-api' } |
             Select-Object -First 1
@@ -130,17 +139,20 @@ jobs:
             throw "Unexpected version output: $versionOutput"
           }
 
+          $stdout = Join-Path $PWD "build/windows/health.stdout.log"
+          $stderr = Join-Path $PWD "build/windows/health.stderr.log"
           $process = Start-Process `
-            -FilePath $exe `
+            -FilePath $exe.FullName `
             -ArgumentList @("--host", "127.0.0.1", "--port", "18080") `
+            -WorkingDirectory $exe.DirectoryName `
             -RedirectStandardOutput $stdout `
             -RedirectStandardError $stderr `
             -PassThru
 
           try {
             $ready = $false
-            for ($i = 0; $i -lt 30; $i++) {
-              Start-Sleep -Seconds 2
+            for ($i = 0; $i -lt 20; $i++) {
+              Start-Sleep -Seconds 1
 
               if ($process.HasExited) {
                 $stdoutText = if (Test-Path $stdout) { Get-Content -Raw $stdout } else { "" }
@@ -149,7 +161,7 @@ jobs:
               }
 
               try {
-                $response = Invoke-RestMethod -Uri "http://127.0.0.1:18080/health" -TimeoutSec 3
+                $response = Invoke-RestMethod -Uri "http://127.0.0.1:18080/health" -TimeoutSec 2
                 if ($response.status -eq "ok") {
                   $ready = $true
                   break
@@ -171,25 +183,34 @@ jobs:
             }
           }
 
+      - name: Package standalone bundle
+        shell: pwsh
+        run: |
+          $dist = Get-ChildItem -Path build/windows -Directory -Filter "*.dist" | Select-Object -First 1
+          if (-not $dist) {
+            throw "Nuitka standalone distribution directory was not found."
+          }
+          Compress-Archive -Path (Join-Path $dist.FullName "*") -DestinationPath "build/windows/$env:WINDOWS_BUNDLE.zip" -CompressionLevel Optimal
+
       - name: Generate SHA-256 checksum
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD "build/windows/$env:EXE_NAME"
-          $hash = (Get-FileHash -Algorithm SHA256 -Path $exe).Hash.ToLowerInvariant()
-          "$hash  $env:EXE_NAME" | Out-File -FilePath "build/windows/SHA256SUMS-windows-x64.txt" -Encoding ascii
+          $bundle = Join-Path $PWD "build/windows/$env:WINDOWS_BUNDLE.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $bundle).Hash.ToLowerInvariant()
+          "$hash  $env:WINDOWS_BUNDLE.zip" | Out-File -FilePath "build/windows/SHA256SUMS-windows-x64.txt" -Encoding ascii
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
           path: |
-            build/windows/${{ env.EXE_NAME }}
+            build/windows/${{ env.WINDOWS_BUNDLE }}.zip
             build/windows/SHA256SUMS-windows-x64.txt
           if-no-files-found: error
 
   docker:
     name: Build and publish Docker image
-    needs: [validate, windows-executable]
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -237,7 +258,7 @@ jobs:
           name: python-distributions
           path: dist/python
 
-      - name: Download Windows executable
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
           name: windows-executable
