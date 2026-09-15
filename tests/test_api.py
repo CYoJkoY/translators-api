@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from translators_api import main
 from translators_api.config import Settings
-from translators_api.service import TranslationResult, TranslationService
+from translators_api.service import TranslationResult, TranslationService, TranslationServiceError
 
 
 @pytest.fixture()
@@ -14,6 +14,7 @@ def client():
     main.settings.api_key = None
     main.settings.rate_limit_requests = 1_000
     main.settings.rate_limit_window_seconds = 60
+    main.settings.batch_timeout = 120.0
     main._rate_buckets.clear()
     return TestClient(main.app)
 
@@ -65,11 +66,100 @@ def test_batch_translation(client, monkeypatch):
         json={"texts": ["a", "b", "c"], "source": "en", "target": "zh-CN"},
     )
     assert response.status_code == 200
-    assert [item["translation"] for item in response.json()["items"]] == [
+    body = response.json()
+    assert [item["translation"] for item in body["items"]] == [
         "translated:a",
         "translated:b",
         "translated:c",
     ]
+    assert all(item["status"] == "success" for item in body["items"])
+    assert body["completed"] == 3
+    assert body["failed"] == 0
+    assert body["partial_success"] is False
+    assert body["deadline_exceeded"] is False
+
+
+def test_batch_preserves_success_when_one_item_fails(client, monkeypatch):
+    async def fake_translate(text, source, target, translator):
+        if text == "bad":
+            raise TranslationServiceError("provider unavailable")
+        return TranslationResult(f"translated:{text}", translator or "bing", False)
+
+    monkeypatch.setattr(main.service, "translate", fake_translate)
+    response = client.post(
+        "/v1/translate/batch",
+        json={"texts": ["a", "bad", "c"], "source": "en", "target": "zh-CN"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["completed"] == 2
+    assert body["failed"] == 1
+    assert body["partial_success"] is True
+    assert body["deadline_exceeded"] is False
+    assert body["items"] == [
+        {
+            "text": "a",
+            "translation": "translated:a",
+            "index": 0,
+            "status": "success",
+            "error_code": None,
+            "error_message": None,
+        },
+        {
+            "text": "bad",
+            "translation": None,
+            "index": 1,
+            "status": "error",
+            "error_code": "translation_failed",
+            "error_message": "translation failed",
+        },
+        {
+            "text": "c",
+            "translation": "translated:c",
+            "index": 2,
+            "status": "success",
+            "error_code": None,
+            "error_message": None,
+        },
+    ]
+
+
+def test_batch_deadline_marks_unfinished_items(client, monkeypatch):
+    async def fake_translate(text, source, target, translator):
+        if text == "slow":
+            await asyncio.sleep(0.05)
+        return TranslationResult(f"translated:{text}", translator or "bing", False)
+
+    monkeypatch.setattr(main.service, "translate", fake_translate)
+    monkeypatch.setattr(main.settings, "batch_timeout", 0.01)
+
+    response = client.post(
+        "/v1/translate/batch",
+        json={"texts": ["fast", "slow"], "source": "en", "target": "zh-CN"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["completed"] == 1
+    assert body["failed"] == 1
+    assert body["partial_success"] is True
+    assert body["deadline_exceeded"] is True
+    assert body["items"][0]["status"] == "success"
+    assert body["items"][1]["error_code"] == "batch_timeout"
+
+
+def test_batch_all_items_fail_without_http_5xx(client, monkeypatch):
+    async def fake_translate(text, source, target, translator):
+        raise TranslationServiceError("provider unavailable")
+
+    monkeypatch.setattr(main.service, "translate", fake_translate)
+    response = client.post("/v1/translate/batch", json={"texts": ["a", "b"]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["completed"] == 0
+    assert body["failed"] == 2
+    assert body["partial_success"] is False
+    assert body["translator"] == "none"
+    assert all(item["status"] == "error" for item in body["items"])
 
 
 def test_html_translation(client, monkeypatch):
