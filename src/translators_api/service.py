@@ -47,23 +47,27 @@ def available_languages(translator: str) -> list[str]:
     return [str(languages)]
 
 
-def _translate_sync(text: str, translator: str, source: str, target: str) -> str:
+def _translate_sync(text: str, translator: str, source: str, target: str, timeout: float) -> str:
     result = ts.translate_text(
         query_text=text,
         translator=translator,
         from_language=source,
         to_language=target,
+        timeout=timeout,
         if_print_warning=False,
     )
     return str(result)
 
 
-def _translate_html_sync(html: str, translator: str, source: str, target: str) -> str:
+def _translate_html_sync(
+    html: str, translator: str, source: str, target: str, timeout: float
+) -> str:
     result = ts.translate_html(
         query_text=html,
         translator=translator,
         from_language=source,
         to_language=target,
+        timeout=timeout,
         if_print_warning=False,
     )
     return str(result)
@@ -94,7 +98,14 @@ class TranslatorService:
         errors: list[str] = []
         for index, name in enumerate(candidates):
             try:
-                result = await asyncio.to_thread(_translate_sync, text, name, source, target)
+                result = await asyncio.to_thread(
+                    _translate_sync,
+                    text,
+                    name,
+                    source,
+                    target,
+                    self.settings.upstream_timeout,
+                )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
                 return TranslationResult(result, name, auto and index > 0)
@@ -112,7 +123,14 @@ class TranslatorService:
         errors: list[str] = []
         for index, name in enumerate(candidates):
             try:
-                result = await asyncio.to_thread(_translate_html_sync, html, name, source, target)
+                result = await asyncio.to_thread(
+                    _translate_html_sync,
+                    html,
+                    name,
+                    source,
+                    target,
+                    self.settings.upstream_timeout,
+                )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
                 return TranslationResult(result, name, auto and index > 0)
