@@ -1,14 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
 <title id="title">translators-api icon</title>
-<desc id="desc">A muted Morandi-style translation gateway icon with two language cards connected through a central API node.</desc>
-<rect width="512" height="512" rx="112" fill="#8f9b9b"/>
-<rect x="40" y="40" width="432" height="432" rx="92" fill="#b7a99a"/>
-<rect x="78" y="78" width="356" height="356" rx="72" fill="#d7d0c8"/>
-<path d="M144 184h84c23 0 42 19 42 42v18c0 23-19 42-42 42h-44l-32 30v-30h-8c-23 0-42-19-42-42v-18c0-23 19-42 42-42Z" fill="#667575"/>
-<path d="M284 246h84c23 0 42 19 42 42v18c0 23-19 42-42 42h-8v30l-32-30h-44c-23 0-42-19-42-42v-18c0-23 19-42 42-42Z" fill="#a98f91"/>
-<text x="186" y="245" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="44" font-weight="700" fill="#eee9e2">A</text>
-<text x="326" y="306" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="40" font-weight="700" fill="#eee9e2">文</text>
-<circle cx="256" cy="256" r="34" fill="#eee9e2" stroke="#536161" stroke-width="8"/>
-<path d="M244 256h24M256 244v24" stroke="#536161" stroke-width="8" stroke-linecap="round"/>
-<path d="M226 256h-22M308 256h-22" stroke="#536161" stroke-width="8" stroke-linecap="round"/>
+<desc id="desc">A high-contrast Morandi-style translation gateway icon with two language panels connected by a dark API node.</desc>
+
+<rect width="512" height="512" rx="112" fill="#9AA39A"/>
+<rect x="42" y="42" width="428" height="428" rx="88" fill="#D8D0C6" stroke="#3F4847" stroke-width="12"/>
+
+<g transform="translate(84 118)">
+  <rect width="136" height="112" rx="24" fill="#87979B" stroke="#3F4847" stroke-width="10"/>
+  <text x="68" y="76" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="56" font-weight="800" fill="#27302F">A</text>
+</g>
+
+<g transform="translate(292 282)">
+  <rect width="136" height="112" rx="24" fill="#B59A9B" stroke="#3F4847" stroke-width="10"/>
+  <text x="68" y="76" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="50" font-weight="800" fill="#27302F">文</text>
+</g>
+
+<path d="M216 174H304" fill="none" stroke="#3F4847" stroke-width="14" stroke-linecap="round"/>
+<path d="M286 150L314 174L286 198" fill="none" stroke="#3F4847" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+
+<path d="M296 338H208" fill="none" stroke="#3F4847" stroke-width="14" stroke-linecap="round"/>
+<path d="M226 314L198 338L226 362" fill="none" stroke="#3F4847" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+
+<circle cx="256" cy="256" r="48" fill="#EEE6DD" stroke="#3F4847" stroke-width="12"/>
+<rect x="238" y="238" width="36" height="36" rx="8" fill="#B38F82" stroke="#3F4847" stroke-width="8"/>
+<path d="M247 256H265M256 247V265" stroke="#3F4847" stroke-width="7" stroke-linecap="round"/>
+
+<path d="M112 408H400" stroke="#3F4847" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
 </svg>
