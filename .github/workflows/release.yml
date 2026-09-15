@@ -57,7 +57,6 @@ jobs:
             echo "Tag version:     $TAG_VERSION"
             echo "Tag and package versions must match exactly."
             exit 1
-          fi
 
       - name: Build Python distributions
         run: |
@@ -75,8 +74,6 @@ jobs:
     name: Build Windows portable bundle
     needs: validate
     runs-on: windows-latest
-    env:
-      NUITKA_CACHE_DIR: ${{ github.workspace }}/.nuitka-cache
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -86,14 +83,6 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-
-      - name: Cache Nuitka build state
-        uses: actions/cache@v4
-        with:
-          path: .nuitka-cache
-          key: nuitka-windows-py3.12-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            nuitka-windows-py3.12-
 
       - name: Install executable build dependencies
         run: python -m pip install ".[build]"
@@ -106,34 +95,32 @@ jobs:
           $version = $env:TAG_NAME.TrimStart("v")
           "WINDOWS_BUNDLE=translators-api-v$version-windows-x64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build standalone bundle
+      - name: Build Windows bundle
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
-          python -m nuitka `
-            --mode=standalone `
-            --assume-yes-for-downloads `
-            --enable-plugin=anti-bloat `
-            --jobs=4 `
-            --lto=no `
-            --output-dir=build/windows `
-            --output-filename=translators-api.exe `
-            --include-package-data=translators `
-            --include-package-data=exejs `
-            --nofollow-import-to=torch,transformers,tensorflow,IPython,selenium,PyQt5,PyQt6,PyQtWebEngine,PySide2,PySide6,playwright,tkinter,pywebview `
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --name translators-api `
+            --distpath build/windows `
+            --workpath build/pyinstaller `
+            --specpath build/pyinstaller `
+            --paths src `
             src/translators_api/cli.py
 
-      - name: Smoke-test standalone bundle
+      - name: Smoke-test Windows bundle
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path build/windows -Recurse -Filter "translators-api.exe" | Select-Object -First 1
-          if (-not $exe) {
-            throw "Nuitka did not produce the expected standalone executable."
+          $bundle = Join-Path $PWD "build/windows/translators-api"
+          $exe = Join-Path $bundle "translators-api.exe"
+          if (-not (Test-Path $exe)) {
+            throw "PyInstaller did not produce the expected executable."
           }
 
-          $versionOutput = (& $exe.FullName --version 2>&1 | Out-String).Trim()
+          $versionOutput = (& $exe --version 2>&1 | Out-String).Trim()
           $versionLine = ($versionOutput -split "`r?`n") |
-            Where-Object { $_ -match 'translators-api' } |
+            Where-Object { $_ -match '^translators-api ' } |
             Select-Object -First 1
           if (-not $versionLine -or $versionLine -notmatch '^translators-api [0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?$') {
             throw "Unexpected version output: $versionOutput"
@@ -142,9 +129,9 @@ jobs:
           $stdout = Join-Path $PWD "build/windows/health.stdout.log"
           $stderr = Join-Path $PWD "build/windows/health.stderr.log"
           $process = Start-Process `
-            -FilePath $exe.FullName `
+            -FilePath $exe `
             -ArgumentList @("--host", "127.0.0.1", "--port", "18080") `
-            -WorkingDirectory $exe.DirectoryName `
+            -WorkingDirectory $bundle `
             -RedirectStandardOutput $stdout `
             -RedirectStandardError $stderr `
             -PassThru
@@ -183,14 +170,11 @@ jobs:
             }
           }
 
-      - name: Package standalone bundle
+      - name: Package Windows bundle
         shell: pwsh
         run: |
-          $dist = Get-ChildItem -Path build/windows -Directory -Filter "*.dist" | Select-Object -First 1
-          if (-not $dist) {
-            throw "Nuitka standalone distribution directory was not found."
-          }
-          Compress-Archive -Path (Join-Path $dist.FullName "*") -DestinationPath "build/windows/$env:WINDOWS_BUNDLE.zip" -CompressionLevel Optimal
+          $bundle = Join-Path $PWD "build/windows/translators-api"
+          Compress-Archive -Path (Join-Path $bundle "*") -DestinationPath "build/windows/$env:WINDOWS_BUNDLE.zip" -CompressionLevel Optimal
 
       - name: Generate SHA-256 checksum
         shell: pwsh
