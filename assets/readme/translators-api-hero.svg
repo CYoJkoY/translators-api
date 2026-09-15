@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
 <title id="title">translators-api</title>
 <desc id="desc">A translation request flowing through a unified API gateway into multiple translation services.</desc>
+<style>@media (prefers-color-scheme: dark){rect[fill="#f7f5ef"]{fill:#0d1117!important}rect[fill="#fffdf8"]{fill:#161b22!important}rect[fill="#202020"]{fill:#21262d!important}[fill="#202020"]{fill:#f0f6fc!important}[stroke="#202020"]{stroke:#f0f6fc!important}[fill="#5f5b55"]{fill:#8b949e!important}[fill="#47433d"]{fill:#c9d1d9!important}[fill="#d8d2c7"]{fill:#c9d1d9!important}[fill="#e7dfd0"]{fill:#2d2a24!important}[fill="#d7e3d6"]{fill:#1f3a2e!important}[fill="#d9e1ec"]{fill:#23344d!important}[fill="#ead7d4"]{fill:#442c2b!important}[fill="#ece2cf"]{fill:#443b26!important}}</style>
 <rect width="1600" height="520" fill="#f7f5ef"/>
 <rect x="72" y="68" width="1456" height="384" rx="28" fill="#fffdf8" stroke="#202020" stroke-width="4"/>
 <text x="132" y="150" font-family="Inter,Segoe UI,sans-serif" font-size="64" font-weight="700" fill="#202020">translators-api</text>

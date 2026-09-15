@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" role="img" aria-labelledby="title desc">
 <title id="title">Support translators-api</title>
 <desc id="desc">Support development and maintenance of translators-api.</desc>
+<style>@media (prefers-color-scheme: dark){rect[fill="#202020"]{fill:#161b22!important}[fill="#202020"]{fill:#f0f6fc!important}[fill="#fffdf8"]{fill:#f0f6fc!important}[fill="#d8d2c7"]{fill:#c9d1d9!important}[fill="#e7dfd0"]{fill:#30363d!important}}</style>
 <rect width="900" height="220" rx="24" fill="#202020"/>
 <path d="M46 46h42v42H46z" fill="#e7dfd0"/><path d="M58 58h18v18H58z" fill="#202020"/>
 <text x="118" y="86" font-family="Inter,Segoe UI,sans-serif" font-size="30" font-weight="700" fill="#fffdf8">Support translators-api</text>
