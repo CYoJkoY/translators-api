@@ -13,7 +13,7 @@
 <path d="M224 276h64M224 296h44" stroke="#EEE8DF" stroke-width="9" stroke-linecap="round"/>
 <path d="M218 148h68" stroke="#33403D" stroke-width="14" stroke-linecap="round"/>
 <path d="m270 128 26 20-26 20" fill="none" stroke="#33403D" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M294 364h-68" stroke="#EEE8DF" stroke-width="14" stroke-linecap="round"/>
-<path d="m242 344-26 20 26 20" fill="none" stroke="#EEE8DF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M294 364h-68" stroke="#B57F74" stroke-width="14" stroke-linecap="round"/>
+<path d="m242 344-26 20 26 20" fill="none" stroke="#B57F74" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="94" y="408" width="324" height="10" rx="5" fill="#33403D" opacity=".28"/>
 </svg>
