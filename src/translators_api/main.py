@@ -301,7 +301,12 @@ async def metrics() -> Response:
 @app.get("/v1/translators", dependencies=[Depends(protected)])
 async def translators() -> dict[str, object]:
     names = available_translators()
-    return {"translators": names, "default": settings.default_translator, "fallback": settings.fallback_translators}
+    return {
+        "translators": names,
+        "default": settings.default_translator,
+        "fallback": settings.fallback_translators,
+        "state": service.provider_states(),
+    }
 
 
 @app.get("/v1/languages", dependencies=[Depends(protected)])

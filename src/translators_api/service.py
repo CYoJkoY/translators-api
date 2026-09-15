@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import translators as ts
 
 from .config import Settings
+from .resilience import CircuitBreaker, classify_failure
 
 
 class TranslationServiceError(RuntimeError):
@@ -77,6 +78,13 @@ class TranslationService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._available = set(available_translators())
+        self._circuits = CircuitBreaker(
+            failure_threshold=settings.circuit_failure_threshold,
+            recovery_seconds=settings.circuit_recovery_seconds,
+        )
+
+    def provider_states(self) -> dict[str, str]:
+        return self._circuits.snapshot(sorted(self._available))
 
     def _candidates(self, translator: str | None) -> tuple[list[str], bool]:
         requested = translator or self.settings.default_translator
@@ -96,7 +104,11 @@ class TranslationService:
     ) -> TranslationResult:
         candidates, auto = self._candidates(translator)
         errors: list[str] = []
-        for index, name in enumerate(candidates):
+        attempted = 0
+        for name in candidates:
+            if not self._circuits.allow(name):
+                continue
+            attempted += 1
             try:
                 result = await asyncio.to_thread(
                     _translate_sync,
@@ -108,10 +120,18 @@ class TranslationService:
                 )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
-                return TranslationResult(result, name, auto and index > 0)
+                self._circuits.record_success(name)
+                return TranslationResult(result, name, auto and attempted > 1)
             except Exception as exc:
-                errors.append(f"{name}: {type(exc).__name__}")
+                failure = classify_failure(exc)
+                if failure.retryable:
+                    self._circuits.record_failure(name)
+                    errors.append(f"{name}: {failure.kind}")
+                    continue
+                raise TranslationServiceError(failure.detail) from exc
 
+        if not attempted:
+            raise TranslationServiceError("all configured translator circuits are open")
         raise TranslationServiceError(
             "all translators failed" + (f" ({'; '.join(errors)})" if errors else "")
         )
@@ -121,7 +141,11 @@ class TranslationService:
     ) -> TranslationResult:
         candidates, auto = self._candidates(translator)
         errors: list[str] = []
-        for index, name in enumerate(candidates):
+        attempted = 0
+        for name in candidates:
+            if not self._circuits.allow(name):
+                continue
+            attempted += 1
             try:
                 result = await asyncio.to_thread(
                     _translate_html_sync,
@@ -133,10 +157,18 @@ class TranslationService:
                 )
                 if not result:
                     raise TranslationServiceError("translator returned an empty result")
-                return TranslationResult(result, name, auto and index > 0)
+                self._circuits.record_success(name)
+                return TranslationResult(result, name, auto and attempted > 1)
             except Exception as exc:
-                errors.append(f"{name}: {type(exc).__name__}")
+                failure = classify_failure(exc)
+                if failure.retryable:
+                    self._circuits.record_failure(name)
+                    errors.append(f"{name}: {failure.kind}")
+                    continue
+                raise TranslationServiceError(failure.detail) from exc
 
+        if not attempted:
+            raise TranslationServiceError("all configured translator circuits are open")
         raise TranslationServiceError(
             "all translators failed" + (f" ({'; '.join(errors)})" if errors else "")
         )
