@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/readme/translators-api-hero.svg" alt="translators-api — one HTTP boundary for multiple translation backends" width="100%">
+<img src="assets/readme/translators-api-hero.svg" alt="translators-api — one HTTP boundary for many translation backends" width="100%">
 
 # translators-api
 
@@ -16,7 +16,8 @@
   <a href="#readme-overview">Overview</a> ·
   <a href="#readme-quick-start">Quick Start</a> ·
   <a href="#readme-api">API</a> ·
-  <a href="#readme-architecture">Architecture</a> ·
+  <a href="#readme-configuration">Configuration</a> ·
+  <a href="#readme-deployment">Deployment</a> ·
   <a href="#readme-limitations">Limitations</a> ·
   <a href="#readme-support">Support</a>
 </p>
@@ -28,105 +29,95 @@
 <a name="readme-overview"></a>
 ## <img src="assets/readme/icons/overview.svg" width="24" height="24" alt=""> Overview
 
-`translators-api` is intended to turn the Python [Translators](https://github.com/UlionTse/translators) library into a language-agnostic HTTP service.
+`translators-api` exposes the upstream [Translators](https://github.com/UlionTse/translators) Python library through a small, versioned HTTP API.
 
-The upstream project provides a common Python interface for many translation services, including text and HTML translation. `translators-api` adds a stable service boundary so browser extensions, desktop applications, web applications, scripts, and other runtimes can consume the same translation backend over HTTP.
+The gateway gives browser extensions, desktop applications, web applications, scripts, and other runtimes a single integration point instead of requiring provider-specific translation code in every client.
+
+```text
+Client
+  │
+  │ HTTP + JSON
+  ▼
+┌───────────────────────────┐
+│      translators-api      │
+│ auth · validation         │
+│ routing · limits          │
+│ fallback · errors         │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│      Translators          │
+│ common Python interface   │
+└─────────────┬─────────────┘
+              │
+       ┌──────┼──────┬──────┐
+       ▼      ▼      ▼      ▼
+    Google   Bing   DeepL   ...
+```
 
 ### Current status
 
-This repository is currently in **early development**. The README defines the intended service contract and architecture; the production API implementation is being developed incrementally.
+The project now contains a runnable FastAPI service, test suite, configuration model, Docker image definition, and GitHub Actions CI. Advanced production features such as distributed rate limiting and shared caching remain future work.
 
-That distinction is intentional: documented endpoints and features below describe the target service design, not functionality that is already guaranteed to be available in the current repository.
+### Design goals
 
-### What it solves
-
-```text
-Without a gateway
-
-Application ──► provider-specific integration
-              ├─ Google
-              ├─ Bing
-              ├─ DeepL
-              └─ other services
-
-With translators-api
-
-Application ──► HTTP API ──► Translators ──► providers
-                         one stable boundary
-```
+- **One HTTP contract** across many upstream translators.
+- **Thin integration layer** that does not duplicate provider implementations.
+- **Explicit failure boundaries** so provider errors do not leak raw exceptions to clients.
+- **Self-hosted operation** with configuration supplied through environment variables.
+- **Incremental hardening** through tests, CI, and deployment checks.
 
 ---
 
 <a name="readme-quick-start"></a>
 ## <img src="assets/readme/icons/quick-start.svg" width="24" height="24" alt=""> Quick Start
 
-The service implementation is not yet published, so there is currently no production startup command to copy and run.
-
-The planned local setup uses Python and the upstream `translators` package:
+### Run locally
 
 ```bash
+git clone https://github.com/CYoJkoY/translators-api.git
+cd translators-api
+
 python -m venv .venv
-```
 
-Windows PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Linux / macOS:
-
-```bash
+# Linux / macOS
 source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+python -m pip install -e ".[test]"
 ```
 
-Install the upstream engine during development:
+Start the server:
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install translators
+uvicorn translators_api.main:app --host 0.0.0.0 --port 8000
 ```
 
-The final server entry point, dependency manifest, container image, and deployment command will be added together with the first API implementation.
+Then open:
 
-### Upstream Python API
-
-For direct Python usage today, the upstream package exposes a common interface such as:
-
-```python
-import translators as ts
-
-result = ts.translate_text(
-    "Hello, world!",
-    translator="bing",
-    from_language="en",
-    to_language="zh-CN",
-)
-
-print(result)
-```
-
-The upstream package also supports HTML translation and asynchronous invocation. Consult the upstream documentation for provider-specific parameters and the current supported-service list.
-
----
-
-<a name="readme-api"></a>
-## <img src="assets/readme/icons/api.svg" width="24" height="24" alt=""> API
-
-The public API is designed around versioned endpoints under `/v1`.
+- `http://localhost:8000/docs` — Swagger UI
+- `http://localhost:8000/redoc` — ReDoc
+- `http://localhost:8000/health` — health check
+- `http://localhost:8000/ready` — readiness check
 
 ### Translate text
 
-`POST /v1/translate`
-
-```json
-{
-  "text": "你好，世界",
-  "source": "zh",
-  "target": "en",
-  "translator": "google"
-}
+```bash
+curl -X POST http://localhost:8000/v1/translate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "你好，世界",
+    "source": "zh",
+    "target": "en",
+    "translator": "bing"
+  }'
 ```
+
+Example response:
 
 ```json
 {
@@ -134,13 +125,43 @@ The public API is designed around versioned endpoints under `/v1`.
   "translation": "Hello, world",
   "source": "zh",
   "target": "en",
-  "translator": "google"
+  "translator": "bing",
+  "fallback": false,
+  "request_id": "req_..."
 }
 ```
 
-### Translate multiple texts
+---
 
-`POST /v1/translate/batch`
+<a name="readme-api"></a>
+## <img src="assets/readme/icons/api.svg" width="24" height="24" alt=""> API
+
+All application endpoints are versioned under `/v1`.
+
+| Method | Endpoint | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/v1/translate` | Translate one text value |
+| `POST` | `/v1/translate/batch` | Translate multiple text values concurrently |
+| `POST` | `/v1/translate/html` | Translate HTML through the upstream HTML API |
+| `GET` | `/v1/translators` | List available translator backends |
+| `GET` | `/v1/languages?translator=bing` | List languages exposed by one backend |
+| `GET` | `/health` | Liveness check |
+| `GET` | `/ready` | Readiness check |
+
+### Text
+
+```json
+{
+  "text": "Hello, world!",
+  "source": "en",
+  "target": "zh-CN",
+  "translator": "auto"
+}
+```
+
+`translator` is optional. `auto` uses the configured fallback list.
+
+### Batch
 
 ```json
 {
@@ -155,141 +176,147 @@ The public API is designed around versioned endpoints under `/v1`.
 }
 ```
 
-### Translate HTML
+Each item is returned with its original index so clients can safely reconstruct input order.
 
-`POST /v1/translate/html`
+### HTML
 
 ```json
 {
-  "html": "<p>Hello, world!</p>",
+  "html": "<p>Hello, <strong>world!</strong></p>",
   "source": "en",
   "target": "zh-CN",
   "translator": "bing"
 }
 ```
 
-### Inspect translators
+### Translator discovery
 
-`GET /v1/translators`
-
-Returns the translator backends exposed by the running service.
-
-### Inspect languages
-
-`GET /v1/languages`
-
-Returns language identifiers available through the configured backends.
-
-### Health check
-
-`GET /health`
-
-A minimal endpoint for reverse proxies, container orchestration, and service monitoring.
+```bash
+curl http://localhost:8000/v1/translators
+```
 
 ```json
 {
-  "status": "ok"
+  "translators": ["alibaba", "baidu", "bing"],
+  "default": "bing",
+  "fallback": ["bing", "google", "deepl", "baidu"]
 }
 ```
 
-### Authentication
+The exact list depends on the installed upstream `translators` version and its current implementation.
 
-Network-accessible deployments should require an API key or equivalent authentication mechanism.
+### Structured errors
 
-```http
-Authorization: Bearer YOUR_API_KEY
-```
-
-Authentication, quotas, and rate limits belong at the API boundary so the service can protect both its own resources and upstream providers.
-
-### Error model
-
-The final implementation should expose predictable HTTP status codes and a machine-readable error object rather than leaking raw provider exceptions.
-
-Example target shape:
+API errors use a consistent envelope:
 
 ```json
 {
   "error": {
     "code": "translation_failed",
-    "message": "All configured translators failed.",
-    "request_id": "req_01J..."
+    "message": "all translators failed",
+    "request_id": "req_..."
   }
 }
 ```
+
+Every response generated by the application carries `X-Request-ID` so failed requests can be correlated with server logs.
+
+### Authentication
+
+Set `TRANSLATORS_API_KEY` to enable bearer-token authentication on `/v1/*` endpoints:
+
+```bash
+curl http://localhost:8000/v1/translators \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+Authentication is disabled when the variable is unset, which is convenient for local development. Do not expose an unauthenticated public instance.
+
+---
+
+<a name="readme-configuration"></a>
+## <img src="assets/readme/icons/configuration.svg" width="24" height="24" alt=""> Configuration
+
+Copy `.env.example` as a reference. The application reads configuration from environment variables.
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `TRANSLATORS_API_KEY` | empty | Bearer token for API authentication |
+| `HOST` | `0.0.0.0` | Bind address used by the deployment command |
+| `PORT` | `8000` | HTTP port |
+| `LOG_LEVEL` | `info` | Application log level |
+| `MAX_TEXT_LENGTH` | `20000` | Maximum text/HTML size in characters |
+| `MAX_BATCH_ITEMS` | `50` | Maximum batch item count |
+| `MAX_BATCH_TOTAL_LENGTH` | `100000` | Maximum combined batch size |
+| `RATE_LIMIT_REQUESTS` | `120` | Requests allowed per client window |
+| `RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window |
+| `DEFAULT_TRANSLATOR` | `bing` | Translator used when omitted |
+| `FALLBACK_TRANSLATORS` | `bing,google,deepl,baidu` | Ordered fallback candidates |
+
+The built-in rate limiter is intentionally process-local. Multiple application workers therefore have independent counters. A shared limiter should be added before deploying a multi-worker or horizontally scaled public service.
 
 ---
 
 <a name="readme-architecture"></a>
 ## <img src="assets/readme/icons/architecture.svg" width="24" height="24" alt=""> Architecture
 
-The service is deliberately thin. Translation-provider behavior stays in `Translators`; API concerns stay in `translators-api`.
+The code is divided into small boundaries:
 
 ```text
-┌───────────────────────┐
-│ Client                │
-│ browser / app / tool  │
-└───────────┬───────────┘
-            │ HTTPS + JSON
-            ▼
-┌─────────────────────────────┐
-│ translators-api             │
-│                             │
-│ auth · validation            │
-│ routing · rate limits       │
-│ fallback · caching          │
-│ unified errors / responses  │
-└────────────┬────────────────┘
+src/translators_api/
+├── config.py      environment-backed settings
+├── models.py      request / response schemas
+├── service.py     upstream Translators adapter + fallback
+└── main.py        FastAPI routes, auth, limits, errors
+```
+
+The API layer does not reimplement provider logic. It delegates translation to the upstream package and runs its synchronous provider calls through worker threads so the ASGI event loop is not blocked by ordinary provider requests.
+
+### Fallback
+
+```text
+translator = explicit
+       │
+       └────────────► one configured backend
+
+translator = auto
+       │
+       ▼
+configured fallback list
+       │
+       ├─ success ───────► response
+       │
+       └─ failure
              │
              ▼
-┌─────────────────────────────┐
-│ Translators                 │
-│ common Python translation   │
-│ interface                   │
-└────────────┬────────────────┘
+        next backend
              │
-     ┌───────┼────────┬─────────┐
-     ▼       ▼        ▼         ▼
-  Google    Bing     DeepL    other backends
+             └───────────► final 502 if all fail
 ```
 
-### Fallback routing
+A successful fallback response reports `fallback: true` when a backend after the first candidate was required.
 
-`translator: "auto"` is intended to select a configured backend and move through a controlled fallback policy when a provider fails.
+---
 
-```text
-request
-  │
-  ▼
-preferred backend
-  │
-  ├── success ─────────► response
-  │
-  └── failure
-        │
-        ▼
-next backend
-  │
-  ├── success ─────────► response
-  │
-  └── failure ─────────► continue / final error
+<a name="readme-deployment"></a>
+## <img src="assets/readme/icons/deployment.svg" width="24" height="24" alt=""> Deployment
+
+### Docker
+
+Build:
+
+```bash
+docker build -t translators-api .
 ```
 
-Fallback order should be configurable. A single universal provider ranking is not appropriate for every language pair, network environment, or deployment.
+Run:
 
-### Caching
-
-An optional cache can reduce duplicate upstream requests. Cache keys should include all translation-affecting inputs, such as:
-
-```text
-translator
-source language
-target language
-request content
-relevant provider options
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -e TRANSLATORS_API_KEY=change-me \
+  translators-api
 ```
-
-Sensitive translation content should not be cached by default unless the deployment explicitly accepts that data-handling model.
 
 ### Production topology
 
@@ -300,7 +327,7 @@ Internet
 Reverse proxy / TLS
    │
    ├── access policy
-   └── rate limiting
+   └── request limits
           │
           ▼
    translators-api
@@ -309,80 +336,66 @@ Reverse proxy / TLS
       Translators
 ```
 
-A container-first deployment model is planned once the initial service implementation is complete.
+For production use, terminate TLS at a reverse proxy, keep secrets outside the image, use health/readiness checks, and use an external rate limiter when running multiple workers or instances.
+
+---
+
+<a name="readme-development"></a>
+## <img src="assets/readme/icons/development.svg" width="24" height="24" alt=""> Development
+
+Run the test suite:
+
+```bash
+python -m pytest
+```
+
+Compile-check the source:
+
+```bash
+python -m compileall -q src
+```
+
+GitHub Actions runs the test suite on Python 3.10–3.13 and builds the Docker image after the test matrix succeeds.
+
+The repository intentionally keeps the provider adapter small. Provider-specific parameters should only be added to the HTTP contract when they provide stable cross-provider value; otherwise they belong in the upstream `Translators` layer.
 
 ---
 
 <a name="readme-compatibility"></a>
 ## <img src="assets/readme/icons/compatibility.svg" width="24" height="24" alt=""> Compatibility
 
-The upstream `translators` package currently declares Python **3.8+** support and exposes synchronous and asynchronous translation interfaces. Its package metadata also lists multiple provider-specific transport and request options.
+The service requires Python 3.10 or newer. The upstream [Translators](https://github.com/UlionTse/translators) package currently declares Python 3.8+ support and exposes synchronous and asynchronous translation entry points.
 
-The gateway itself is intended to support clients that can issue ordinary HTTP requests; clients do not need to be written in Python.
+The gateway can be consumed by any client capable of HTTP requests. No Python runtime is required on the client side.
 
-Provider availability is expected to vary over time. The upstream project currently lists a broad set of services, but individual services may change behavior or availability independently.
+The available translator set is inherited from the installed upstream package and can change independently of this project.
 
 ---
 
 <a name="readme-limitations"></a>
 ## <img src="assets/readme/icons/limitations.svg" width="24" height="24" alt=""> Limitations
 
-`translators-api` is an integration and self-hosting layer. It is **not** the owner or operator of the translation services behind `Translators`.
+`translators-api` does not operate the underlying translation services. It wraps the access mechanisms implemented by the upstream `Translators` project.
 
-This creates several important boundaries:
+Consequently:
 
-| Boundary | Consequence |
+| Area | Limitation |
 | :--- | :--- |
-| Third-party providers | An upstream service can change, restrict, or disable access independently. |
-| Network conditions | Availability can depend on geography, anti-bot systems, cookies, headers, or provider-side controls. |
-| Translation quality | Results depend on the selected upstream provider. |
-| Rate limits | Provider limits still apply even when requests enter through a single gateway. |
-| Public hosting | An open instance can attract abuse and unexpectedly high upstream traffic. |
-| Legal / policy | Deployments must respect the applicable upstream provider terms and local requirements. |
+| Provider availability | A provider may change, restrict, or disable access. |
+| Network conditions | Geography, anti-bot controls, cookies, headers, and provider limits can affect availability. |
+| Quality | Translation quality depends on the selected backend. |
+| Provider limits | Upstream rate limits still apply. |
+| Public hosting | Open instances can be abused and create unexpected upstream traffic. |
+| Privacy | Do not log or cache sensitive translation content without an appropriate data-handling policy. |
 
-A self-hosted instance should therefore be treated as a controlled integration service, not as a guarantee of permanent access to every translator listed by the upstream project.
-
-### Security baseline
-
-Production deployments should:
-
-- terminate traffic over HTTPS;
-- require authentication for non-local access;
-- enforce request and response size limits;
-- set explicit upstream timeouts;
-- apply per-client rate limits;
-- avoid logging full translation content unless necessary;
-- keep secrets outside source control;
-- restrict diagnostic or administrative endpoints.
-
----
-
-<a name="readme-roadmap"></a>
-## <img src="assets/readme/icons/roadmap.svg" width="24" height="24" alt=""> Roadmap
-
-- [ ] Initial HTTP server
-- [ ] OpenAPI specification
-- [ ] Text translation endpoint
-- [ ] Batch translation endpoint
-- [ ] HTML translation endpoint
-- [ ] Translator discovery
-- [ ] API-key authentication
-- [ ] Rate limiting
-- [ ] Configurable fallback policies
-- [ ] Optional caching
-- [ ] Health and readiness endpoints
-- [ ] Docker deployment
-- [ ] Integration tests
-- [ ] Production deployment guide
-
-The roadmap describes intended development direction and should not be interpreted as a promise of a particular release date.
+Automatic fallback improves resilience but cannot guarantee successful translation when every configured provider is unavailable.
 
 ---
 
 <a name="readme-support"></a>
 ## <img src="assets/readme/icons/support.svg" width="24" height="24" alt=""> Support
 
-Support helps sustain compatibility work, API implementation, documentation, testing, and maintenance.
+Support helps sustain compatibility work, implementation, testing, documentation, and maintenance.
 
 <a href="https://cyojkoy.github.io/Payment/">
   <img src="assets/readme/support.svg" alt="Support translators-api" width="100%">
@@ -395,26 +408,22 @@ Canonical support page: **https://cyojkoy.github.io/Payment/**
 <a name="readme-upstream"></a>
 ## <img src="assets/readme/icons/upstream.svg" width="24" height="24" alt=""> Upstream
 
-This project is built around **[Translators](https://github.com/UlionTse/translators)** by [UlionTse](https://github.com/UlionTse).
-
-Useful references:
+This project builds on **[Translators](https://github.com/UlionTse/translators)** by [UlionTse](https://github.com/UlionTse).
 
 - [GitHub repository](https://github.com/UlionTse/translators)
 - [PyPI package](https://pypi.org/project/translators/)
-- [Upstream README](https://github.com/UlionTse/translators#readme)
+- [Upstream documentation](https://github.com/UlionTse/translators#readme)
 
-The upstream repository describes `Translators` as a Python library providing multiple translation services through a common interface and ships a `fanyi` command-line entry point.
+The upstream library provides the actual provider-specific translation implementations; `translators-api` supplies the HTTP service boundary around them.
 
 ---
 
 <a name="readme-license"></a>
 ## <img src="assets/readme/icons/license.svg" width="24" height="24" alt=""> License
 
-This project is licensed under the **GNU General Public License v3.0**.
+This project is licensed under the **GNU General Public License v3.0**. See [`LICENSE`](LICENSE) for the full license text.
 
-See [`LICENSE`](LICENSE) for the full text.
-
-The upstream `Translators` project is also licensed under GPL-3.0, so downstream distribution and modifications should be handled with the applicable GPL obligations in mind.
+The upstream `Translators` project is also GPL-3.0 licensed. Review the applicable license obligations when redistributing or modifying this project.
 
 <div align="center">
 
