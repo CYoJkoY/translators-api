@@ -1,8 +1,10 @@
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
 from translators_api import main
-from translators_api.service import TranslationResult
+from translators_api.service import TranslationResult, TranslationService
 
 
 @pytest.fixture()
@@ -93,3 +95,23 @@ def test_authentication(client):
     )
     assert response.status_code == 200
     main.settings.api_key = None
+
+
+def test_service_fallback(monkeypatch):
+    settings = main.settings.model_copy(
+        update={"fallback_translators": ["first", "second"], "upstream_timeout": 1.5}
+    )
+    service = TranslationService(settings)
+    service._available = {"first", "second"}
+    calls: list[tuple[str, float]] = []
+
+    def fake_translate(text, translator, source, target, timeout):
+        calls.append((translator, timeout))
+        if translator == "first":
+            raise TimeoutError
+        return "translated"
+
+    monkeypatch.setattr("translators_api.service._translate_sync", fake_translate)
+    result = asyncio.run(service.translate("hello", "en", "zh-CN", "auto"))
+    assert result == TranslationResult("translated", "second", True)
+    assert calls == [("first", 1.5), ("second", 1.5)]
