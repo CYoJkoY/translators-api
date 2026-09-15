@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" role="img" aria-labelledby="title desc">
+<title id="title">Support translators-api</title>
+<desc id="desc">Support development and maintenance of translators-api.</desc>
+<rect width="900" height="220" rx="24" fill="#202020"/>
+<path d="M46 46h42v42H46z" fill="#e7dfd0"/><path d="M58 58h18v18H58z" fill="#202020"/>
+<text x="118" y="86" font-family="Inter,Segoe UI,sans-serif" font-size="30" font-weight="700" fill="#fffdf8">Support translators-api</text>
+<text x="48" y="136" font-family="Inter,Segoe UI,sans-serif" font-size="20" fill="#d8d2c7">Help sustain maintenance, compatibility work, and documentation.</text>
+<rect x="650" y="58" width="190" height="82" rx="18" fill="#e7dfd0"/>
+<text x="745" y="108" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif" font-size="22" font-weight="700" fill="#202020">Support</text>
+</svg>
