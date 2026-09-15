@@ -106,13 +106,9 @@ jobs:
             --enable-plugin=anti-bloat `
             --output-dir=build/windows `
             --output-filename=$env:EXE_NAME `
-            --include-package=translators_api `
-            --include-package=translators `
             --include-package-data=translators `
-            --include-package=exejs `
             --include-package-data=exejs `
-            --include-package=urllib3 `
-            --include-package=certifi `
+            --nofollow-import-to=torch,transformers,tensorflow,IPython `
             src/translators_api/cli.py
 
       - name: Smoke-test executable
