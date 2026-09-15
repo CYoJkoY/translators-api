@@ -23,8 +23,7 @@ test = [
     "httpx>=0.28,<1",
 ]
 build = [
-    "Nuitka>=4,<5",
-    "ordered-set>=4,<5",
+    "PyInstaller>=6,<7",
 ]
 
 [project.scripts]
