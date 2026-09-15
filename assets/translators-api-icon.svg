@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+<title id="title">translators-api icon</title>
+<desc id="desc">A muted Morandi-style translation gateway icon with two language cards connected through a central API node.</desc>
+<rect width="512" height="512" rx="112" fill="#8f9b9b"/>
+<rect x="40" y="40" width="432" height="432" rx="92" fill="#b7a99a"/>
+<rect x="78" y="78" width="356" height="356" rx="72" fill="#d7d0c8"/>
+<path d="M144 184h84c23 0 42 19 42 42v18c0 23-19 42-42 42h-44l-32 30v-30h-8c-23 0-42-19-42-42v-18c0-23 19-42 42-42Z" fill="#667575"/>
+<path d="M284 246h84c23 0 42 19 42 42v18c0 23-19 42-42 42h-8v30l-32-30h-44c-23 0-42-19-42-42v-18c0-23 19-42 42-42Z" fill="#a98f91"/>
+<text x="186" y="245" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="44" font-weight="700" fill="#eee9e2">A</text>
+<text x="326" y="306" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="40" font-weight="700" fill="#eee9e2">文</text>
+<circle cx="256" cy="256" r="34" fill="#eee9e2" stroke="#536161" stroke-width="8"/>
+<path d="M244 256h24M256 244v24" stroke="#536161" stroke-width="8" stroke-linecap="round"/>
+<path d="M226 256h-22M308 256h-22" stroke="#536161" stroke-width="8" stroke-linecap="round"/>
+</svg>
