@@ -57,6 +57,7 @@ jobs:
             echo "Tag version:     $TAG_VERSION"
             echo "Tag and package versions must match exactly."
             exit 1
+          fi
 
       - name: Build Python distributions
         run: |
