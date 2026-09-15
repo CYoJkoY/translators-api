@@ -35,14 +35,16 @@ def test_circuit_opens_after_threshold_and_recovers():
     assert breaker.state("bing", now=1) == "open"
     assert breaker.allow("bing", now=5) is False
 
+    assert breaker.state("bing", now=12) == "half_open"
     assert breaker.allow("bing", now=12) is True
-    assert breaker.state("bing", now=12) == "open"
+    assert breaker.state("bing", now=12) == "half_open"
+    assert breaker.allow("bing", now=12) is False
     breaker.record_success("bing")
     assert breaker.state("bing", now=12) == "closed"
     assert breaker.allow("bing", now=13) is True
 
 
-def test_only_one_half_open_probe_is_allowed():
+def test_half_open_probe_failure_reopens_circuit():
     breaker = CircuitBreaker(failure_threshold=1, recovery_seconds=10)
     breaker.record_failure("bing", now=0)
 
@@ -50,6 +52,7 @@ def test_only_one_half_open_probe_is_allowed():
     assert breaker.allow("bing", now=11) is False
     breaker.record_failure("bing", now=11)
     assert breaker.state("bing", now=11) == "open"
+    assert breaker.allow("bing", now=12) is False
 
 
 def test_invalid_circuit_configuration_is_rejected():
