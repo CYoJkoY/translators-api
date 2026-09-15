@@ -1,3 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
-<rect x="5" y="5" width="54" height="54" rx="15" fill="#AAB2A0" stroke="#303938" stroke-width="2.5"/>
-<g fill="none" stroke="#303938" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="21"/><path d="M11 32h42M32 11c7 6 10 13 10 21s-3 15-10 21c-7-6-10-13-10-21s3-15 10-21ZM15 21h34M15 43h34"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="t d"><title id="t">Compatibility</title><desc id="d">Two aligned interfaces sharing one API contract.</desc><rect x="4.5" y="8" width="10" height="16" rx="2" fill="#A7B2A7" stroke="#33403D" stroke-width="1.8"/><rect x="17.5" y="8" width="10" height="16" rx="2" fill="#B57F74" stroke="#33403D" stroke-width="1.8"/><path d="M14.5 12h3M14.5 16h3M14.5 20h3" stroke="#687773" stroke-width="1.8" stroke-linecap="round"/></svg>

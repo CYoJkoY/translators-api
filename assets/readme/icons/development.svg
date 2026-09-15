@@ -1,3 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
-<rect x="5" y="5" width="54" height="54" rx="15" fill="#A5B0B4" stroke="#303938" stroke-width="2.5"/>
-<g fill="none" stroke="#303938" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m24 18-14 14 14 14M40 18l14 14-14 14M36 13 28 51"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="t d"><title id="t">Development</title><desc id="d">Source code brackets around a small service component.</desc><path d="m11 7-5 9 5 9M21 7l5 9-5 9" fill="none" stroke="#33403D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11h4v10h-4z" fill="#B57F74" stroke="#33403D" stroke-width="1.8"/></svg>

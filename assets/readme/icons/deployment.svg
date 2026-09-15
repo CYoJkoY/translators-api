@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
-<rect x="5" y="5" width="54" height="54" rx="15" fill="#B6A8A0" stroke="#303938" stroke-width="2.5"/>
-<g fill="none" stroke="#303938" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-<path d="M32 10v28"/><path d="m21 21 11-11 11 11"/><path d="M14 39h36v13H14z"/>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="t d"><title id="t">Deployment</title><desc id="d">A service container delivered through a deployment boundary.</desc><path d="M6 9h20v14H6z" fill="#EEE8DF" stroke="#33403D" stroke-width="1.8"/><path d="M10 13h12v6H10z" fill="#A7B2A7" stroke="#33403D" stroke-width="1.8"/><path d="M16 4v5M13.5 6.5 16 4l2.5 2.5" fill="none" stroke="#B57F74" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 26h12" stroke="#687773" stroke-width="1.8" stroke-linecap="round"/></svg>
