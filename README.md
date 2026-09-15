@@ -58,7 +58,7 @@ Client
 
 ### Current status
 
-The project contains a runnable FastAPI service, test suite, configuration model, Docker image definition, Windows portable executable build, and GitHub Actions CI. Advanced production features such as distributed rate limiting and shared caching remain future work.
+The project contains a runnable FastAPI service, test suite, configuration model, Docker image definition, optional Windows standalone bundle build, and GitHub Actions CI. Advanced production features such as distributed rate limiting and shared caching remain future work.
 
 ### Design goals
 
@@ -66,7 +66,7 @@ The project contains a runnable FastAPI service, test suite, configuration model
 - **Thin integration layer** that does not duplicate provider implementations.
 - **Explicit failure boundaries** so provider errors do not leak raw exceptions to clients.
 - **Self-hosted operation** with configuration supplied through environment variables.
-- **Multiple delivery modes** through a Python package, Docker image, and Windows portable executable.
+- **Multiple delivery modes** through a Python package, Docker image, and optional Windows standalone bundle.
 - **Incremental hardening** through tests, CI, and deployment checks.
 
 ---
@@ -312,7 +312,7 @@ A successful fallback response reports `fallback: true` when a backend after the
 <a name="readme-deployment"></a>
 ## <img src="assets/readme/icons/deployment.svg" width="24" height="24" alt=""> Deployment
 
-`translators-api` is distributed in three complementary forms: Python package, Docker image, and Windows portable executable.
+`translators-api` is distributed as a Python package and Docker image, with an optional Windows x64 standalone bundle for users who prefer a Python-free local deployment.
 
 ### Python package
 
@@ -340,25 +340,25 @@ docker run --rm \
   translators-api
 ```
 
-### Windows portable executable
+### Windows standalone bundle
 
-GitHub Releases provide a standalone Windows x64 executable named like:
+GitHub Releases may provide a Windows x64 standalone ZIP containing the executable and its required runtime files:
 
 ```text
-translators-api-v0.1.0-windows-x64.exe
+translators-api-v0.1.0-windows-x64.zip
 ```
 
-No Python installation is required on the target machine. The executable accepts the same environment variables as the Python service and also exposes command-line overrides:
+No Python installation is required on the target machine. Extract the ZIP and run the bundled executable:
 
 ```powershell
-.\translators-api-v0.1.0-windows-x64.exe --host 127.0.0.1 --port 8000
+.\translators-api.exe --host 127.0.0.1 --port 8000
 ```
 
 Inspect available options:
 
 ```powershell
-.\translators-api-v0.1.0-windows-x64.exe --help
-.\translators-api-v0.1.0-windows-x64.exe --version
+.\translators-api.exe --help
+.\translators-api.exe --version
 ```
 
 Release assets also include `SHA256SUMS-windows-x64.txt` for integrity verification. Stable tags publish normal GitHub Releases; development tags such as `v0.1.0.dev1` are published as prereleases.
@@ -400,21 +400,24 @@ Compile-check the source:
 python -m compileall -q src
 ```
 
-Build the Windows executable locally on Windows:
+Build the Windows standalone bundle locally on Windows:
 
 ```powershell
 python -m pip install -e ".[build]"
-python -m nuitka --mode=onefile --assume-yes-for-downloads `
+python -m nuitka --mode=standalone `
+  --assume-yes-for-downloads `
+  --enable-plugin=anti-bloat `
+  --jobs=4 `
+  --lto=no `
   --output-dir=build/windows `
-  --output-filename=translators-api-windows-x64.exe `
-  --include-package=translators `
+  --output-filename=translators-api.exe `
   --include-package-data=translators `
-  --include-package=exejs `
   --include-package-data=exejs `
+  --nofollow-import-to=torch,transformers,tensorflow,IPython,selenium,PyQt5,PyQt6,PyQtWebEngine,PySide2,PySide6,playwright,tkinter,pywebview `
   src/translators_api/cli.py
 ```
 
-GitHub Actions runs the test suite on Python 3.10–3.13, builds and smoke-tests the Windows executable, and builds the Docker image after the test matrix succeeds. Tag-triggered Release automation additionally publishes the Python distributions, Docker image, Windows executable, and checksum asset.
+GitHub Actions runs the test suite on Python 3.10–3.13, builds and smoke-tests the optional Windows standalone bundle, and builds the Docker image independently after the test matrix succeeds. Tag-triggered Release automation additionally publishes the Python distributions, Docker image, Windows standalone ZIP, and checksum asset.
 
 The repository intentionally keeps the provider adapter small. Provider-specific parameters should only be added to the HTTP contract when they provide stable cross-provider value; otherwise they belong in the upstream `Translators` layer.
 
@@ -423,7 +426,7 @@ The repository intentionally keeps the provider adapter small. Provider-specific
 <a name="readme-compatibility"></a>
 ## <img src="assets/readme/icons/compatibility.svg" width="24" height="24" alt=""> Compatibility
 
-The service requires Python 3.10 or newer when run as a Python application. The Windows portable executable targets Windows x64 and does not require a local Python runtime.
+The service requires Python 3.10 or newer when run as a Python application. The optional Windows standalone bundle targets Windows x64 and does not require a local Python runtime.
 
 The upstream [Translators](https://github.com/UlionTse/translators) package currently declares Python 3.8+ support and exposes synchronous and asynchronous translation entry points.
 
