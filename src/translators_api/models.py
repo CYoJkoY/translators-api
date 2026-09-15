@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -57,8 +59,11 @@ class TranslateResponse(BaseModel):
 
 class BatchItem(BaseModel):
     text: str
-    translation: str
+    translation: str | None
     index: int
+    status: Literal["success", "error"] = "success"
+    error_code: str | None = None
+    error_message: str | None = None
 
 
 class BatchTranslateResponse(BaseModel):
@@ -67,6 +72,10 @@ class BatchTranslateResponse(BaseModel):
     target: str
     translator: str
     fallback: bool = False
+    completed: int
+    failed: int
+    partial_success: bool
+    deadline_exceeded: bool = False
     request_id: str
 
 
