@@ -71,45 +71,6 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  docker:
-    name: Build and publish Docker image
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        env:
-          CR_PAT: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$CR_PAT" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
-
-      - name: Derive image tags
-        id: tags
-        env:
-          TAG_NAME: ${{ github.ref_name }}
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-        run: |
-          VERSION="${TAG_NAME#v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "version_tag=$IMAGE_NAME:$VERSION" >> "$GITHUB_OUTPUT"
-          if [[ "$TAG_NAME" =~ \.dev[0-9]+$ ]]; then
-            echo "latest_tag=" >> "$GITHUB_OUTPUT"
-          else
-            echo "latest_tag=$IMAGE_NAME:latest" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build and push version tag
-        run: |
-          docker build -t "${{ steps.tags.outputs.version_tag }}" .
-          docker push "${{ steps.tags.outputs.version_tag }}"
-
-      - name: Push stable latest tag
-        if: ${{ steps.tags.outputs.latest_tag != '' }}
-        run: |
-          docker tag "${{ steps.tags.outputs.version_tag }}" "${{ steps.tags.outputs.latest_tag }}"
-          docker push "${{ steps.tags.outputs.latest_tag }}"
-
   windows-executable:
     name: Build Windows portable executable
     needs: validate
@@ -208,6 +169,45 @@ jobs:
           name: windows-executable
           path: build/windows/*
           if-no-files-found: error
+
+  docker:
+    name: Build and publish Docker image
+    needs: [validate, windows-executable]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        env:
+          CR_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$CR_PAT" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Derive image tags
+        id: tags
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_tag=$IMAGE_NAME:$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG_NAME" =~ \.dev[0-9]+$ ]]; then
+            echo "latest_tag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest_tag=$IMAGE_NAME:latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push version tag
+        run: |
+          docker build -t "${{ steps.tags.outputs.version_tag }}" .
+          docker push "${{ steps.tags.outputs.version_tag }}"
+
+      - name: Push stable latest tag
+        if: ${{ steps.tags.outputs.latest_tag != '' }}
+        run: |
+          docker tag "${{ steps.tags.outputs.version_tag }}" "${{ steps.tags.outputs.latest_tag }}"
+          docker push "${{ steps.tags.outputs.latest_tag }}"
 
   release:
     name: Create GitHub Release
