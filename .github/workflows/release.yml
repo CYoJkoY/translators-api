@@ -110,16 +110,122 @@ jobs:
           docker tag "${{ steps.tags.outputs.version_tag }}" "${{ steps.tags.outputs.latest_tag }}"
           docker push "${{ steps.tags.outputs.latest_tag }}"
 
+  windows-executable:
+    name: Build Windows portable executable
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install executable build dependencies
+        run: python -m pip install -e ".[build]"
+
+      - name: Derive executable name
+        shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG_NAME.TrimStart("v")
+          "EXE_NAME=translators-api-v$version-windows-x64.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build onefile executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
+          python -m nuitka `
+            --mode=onefile `
+            --assume-yes-for-downloads `
+            --output-dir=build/windows `
+            --output-filename=$env:EXE_NAME `
+            --include-package=translators `
+            --include-package-data=translators `
+            --include-package=exejs `
+            --include-package-data=exejs `
+            src/translators_api/cli.py
+
+      - name: Smoke-test executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "build/windows/$env:EXE_NAME"
+          if (-not (Test-Path $exe)) {
+            throw "Nuitka did not produce $env:EXE_NAME"
+          }
+
+          $version = & $exe --version
+          $expected = "translators-api $($env:EXE_NAME -replace '^translators-api-v([0-9.]+(?:\.dev[0-9]+)?)-windows-x64\.exe$','$1')"
+          if ($version -ne $expected) {
+            throw "Unexpected version output: $version (expected $expected)"
+          }
+
+          $process = Start-Process `
+            -FilePath $exe `
+            -ArgumentList @("--host", "127.0.0.1", "--port", "18080") `
+            -PassThru
+
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                $response = Invoke-RestMethod -Uri "http://127.0.0.1:18080/health" -TimeoutSec 3
+                if ($response.status -eq "ok") {
+                  $ready = $true
+                  break
+                }
+              } catch {
+                # The service may still be starting.
+              }
+            }
+
+            if (-not $ready) {
+              throw "Executable did not become healthy within the timeout."
+            }
+          } finally {
+            if (!$process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+              $process.WaitForExit()
+            }
+          }
+
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "build/windows/$env:EXE_NAME"
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $exe).Hash.ToLowerInvariant()
+          "$hash  $env:EXE_NAME" | Out-File -FilePath "build/windows/SHA256SUMS-windows-x64.txt" -Encoding ascii
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executable
+          path: |
+            build/windows/${{ env.EXE_NAME }}
+            build/windows/SHA256SUMS-windows-x64.txt
+          if-no-files-found: error
+
   release:
     name: Create GitHub Release
-    needs: [validate, docker]
+    needs: [validate, docker, windows-executable]
     runs-on: ubuntu-latest
     steps:
       - name: Download Python artifacts
         uses: actions/download-artifact@v4
         with:
           name: python-distributions
-          path: dist
+          path: dist/python
+
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executable
+          path: dist/windows
 
       - name: Create release
         env:
@@ -130,7 +236,9 @@ jobs:
           if [[ "$TAG_NAME" =~ \.dev[0-9]+$ ]]; then
             PRERELEASE_FLAG+=(--prerelease)
           fi
-          gh release create "$TAG_NAME" dist/* \
+          gh release create "$TAG_NAME" \
+            dist/python/* \
+            dist/windows/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG_NAME" \
             --generate-notes \
