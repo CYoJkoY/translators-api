@@ -113,8 +113,6 @@ jobs:
             --include-package-data=exejs `
             --include-package=urllib3 `
             --include-package=certifi `
-            --include-package=curl_cffi `
-            --include-package-data=curl_cffi `
             src/translators_api/cli.py
 
       - name: Smoke-test executable
@@ -188,7 +186,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
-          path: build/windows/${{ env.EXE_NAME }},build/windows/SHA256SUMS-windows-x64.txt
+          path: |
+            build/windows/${{ env.EXE_NAME }}
+            build/windows/SHA256SUMS-windows-x64.txt
           if-no-files-found: error
 
   docker:
