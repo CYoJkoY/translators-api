@@ -18,6 +18,8 @@ class Settings(BaseModel):
     upstream_timeout: float = Field(default=30.0, gt=0)
     rate_limit_requests: int = Field(default=120, gt=0)
     rate_limit_window_seconds: int = Field(default=60, gt=0)
+    circuit_failure_threshold: int = Field(default=3, gt=0)
+    circuit_recovery_seconds: float = Field(default=30.0, gt=0)
     fallback_translators: list[str] = Field(
         default_factory=lambda: ["bing", "google", "deepl", "baidu"]
     )
@@ -52,6 +54,12 @@ def get_settings() -> Settings:
         ),
         rate_limit_window_seconds=int(
             os.getenv("RATE_LIMIT_WINDOW_SECONDS", str(defaults.rate_limit_window_seconds))
+        ),
+        circuit_failure_threshold=int(
+            os.getenv("CIRCUIT_FAILURE_THRESHOLD", str(defaults.circuit_failure_threshold))
+        ),
+        circuit_recovery_seconds=float(
+            os.getenv("CIRCUIT_RECOVERY_SECONDS", str(defaults.circuit_recovery_seconds))
         ),
         fallback_translators=_csv(
             os.getenv("FALLBACK_TRANSLATORS"), defaults.fallback_translators
