@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import translators as ts
 
+from .capabilities import CapabilitySupport, capabilities_for
 from .config import Settings
 from .resilience import CircuitBreaker, classify_failure
 
@@ -78,6 +79,7 @@ class TranslationService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._available = set(available_translators())
+        self._capabilities = capabilities_for(self._available)
         self._circuits = CircuitBreaker(
             failure_threshold=settings.circuit_failure_threshold,
             recovery_seconds=settings.circuit_recovery_seconds,
@@ -86,23 +88,39 @@ class TranslationService:
     def provider_states(self) -> dict[str, str]:
         return self._circuits.snapshot(sorted(self._available))
 
-    def _candidates(self, translator: str | None) -> tuple[list[str], bool]:
+    def provider_capabilities(self) -> dict[str, dict[str, str]]:
+        return {name: dict(value) for name, value in sorted(self._capabilities.items())}
+
+    def _supports(self, name: str, capability: str) -> bool:
+        return self._capabilities.get(name, {}).get(capability) != CapabilitySupport.UNSUPPORTED.value
+
+    def _candidates(
+        self, translator: str | None, capability: str = "text"
+    ) -> tuple[list[str], bool]:
         requested = translator or self.settings.default_translator
         if requested.lower() not in {"auto", "detect", "all"}:
             if requested not in self._available:
                 raise UnknownTranslatorError(f"unknown translator: {requested}")
+            if not self._supports(requested, capability):
+                raise TranslationServiceError(
+                    f"translator does not support required capability: {capability}"
+                )
             return [requested], False
 
         candidates = list(dict.fromkeys(self.settings.fallback_translators))
-        candidates = [name for name in candidates if name in self._available]
+        candidates = [
+            name for name in candidates if name in self._available and self._supports(name, capability)
+        ]
         if not candidates:
-            raise TranslationServiceError("no configured fallback translators are available")
+            raise TranslationServiceError(
+                f"no configured fallback translators support required capability: {capability}"
+            )
         return candidates, True
 
     async def translate(
         self, text: str, source: str, target: str, translator: str | None
     ) -> TranslationResult:
-        candidates, auto = self._candidates(translator)
+        candidates, auto = self._candidates(translator, "text")
         errors: list[str] = []
         attempted = 0
         for name in candidates:
@@ -139,7 +157,7 @@ class TranslationService:
     async def translate_html(
         self, html: str, source: str, target: str, translator: str | None
     ) -> TranslationResult:
-        candidates, auto = self._candidates(translator)
+        candidates, auto = self._candidates(translator, "html")
         errors: list[str] = []
         attempted = 0
         for name in candidates:
